@@ -16,16 +16,16 @@ int main() {
     struct sockaddr_in addr;
     char buffer[128];
 
-    fd = socket(AF_INET, SOCK_STREAM, 0);
+    fd = socket(AF_INET, SOCK_STREAM, 0); // TCP socket
     if (fd == -1) {
         write(2, "ERROR: Socket was not created correctly.\n", 41);
         exit(1);
     }
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
+    hints.ai_family = AF_INET; // IPv4 ; use AF_INET6 for IPv6
+    hints.ai_socktype = SOCK_STREAM; // TCP socket
+    hints.ai_flags = AI_PASSIVE; // the returned socket will be suitable for binding
 
     errcode = getaddrinfo(NULL, PORT, &hints, &res);
     if (errcode != 0) {
@@ -39,7 +39,7 @@ int main() {
         exit(1);
     }
 
-    if (listen(fd, 5) == -1) {
+    if (listen(fd, 5) == -1) { // Prepares to queue at most 5 connection requests
         write(2, "ERROR: Listen was not successful.\n", 34);
         exit(1);
     }
@@ -51,7 +51,7 @@ int main() {
             exit(1);
         }
 
-        n = read(newfd, buffer, 128);
+        n = read(newfd, buffer, 128); // Reads message from client
         if (n == -1) {
             write(2, "ERROR: Message was not received correctly.\n", 43);
             exit(1);
@@ -59,7 +59,7 @@ int main() {
         write(1, "received: ", 10);
         write(1, buffer, n);
 
-        n = write(newfd, buffer, n);
+        n = write(newfd, buffer, n); // Writes echo to client
         if (n == -1) {
             write(2, "ERROR: Message was not sent to buffer.\n", 39);
             exit(1);

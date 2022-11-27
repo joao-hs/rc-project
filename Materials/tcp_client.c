@@ -16,15 +16,15 @@ int main() {
     struct sockaddr_in addr;
     char buffer[128];
 
-    fd = socket(AF_INET, SOCK_STREAM, 0);
+    fd = socket(AF_INET, SOCK_STREAM, 0); // TCP socket
     if (fd == -1) {
         write(2, "ERROR: Socket was not created correctly.\n", 41);
         exit(1);
     }
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_family = AF_INET; // IPv4 ; use AF_INET6 for IPv6
+    hints.ai_socktype = SOCK_STREAM; // TCP socket
 
     errcode = getaddrinfo(NULL, PORT, &hints, &res);
     if (errcode != 0) {
@@ -32,19 +32,19 @@ int main() {
         exit(1);
     }
 
-    n = connect(fd, res->ai_addr,res->ai_addrlen);
+    n = connect(fd, res->ai_addr,res->ai_addrlen); // Connection request to server
     if (n == -1) {
         write(2, "ERROR: Connection was not sucessful.\n", 37);
         exit(1);
     }
 
-    n = write(fd, "Hello World!\n", 13);
+    n = write(fd, "Hello World!\n", 13); // Sending message to server's socket
     if (n == -1) {
         write(2, "ERROR: Message was not written to socket.\n", 42);
         exit(1);
     }
 
-    n = read(fd, buffer,128);
+    n = read(fd, buffer,128); // Reading message from server's socket
     if (n == -1) {
         write(2, "ERROR: Message was not received from socket.\n", 45);
         exit(1);
