@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <string.h>
 #define PORT "58001"
 
 int main() {
@@ -26,7 +27,7 @@ int main() {
     hints.ai_family = AF_INET; // IPv4 ; use AF_INET6 for IPv6
     hints.ai_socktype = SOCK_DGRAM; // UDP socket
     
-    errcode = getaddrinfo("tejo.tecnico.ulisboa.pt", PORT, &hints, &res);
+    errcode = getaddrinfo(NULL, PORT, &hints, &res);
     if (errcode != 0) {
         write(2, "ERROR: Address information was not received.\n", 45);
         exit(1);
