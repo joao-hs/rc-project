@@ -41,7 +41,7 @@ ssize_t complete_read(int fd, char * buffer, ssize_t n) {
 
 int main() {
     int fd, errcode, newfd;
-    ssize_t n, nbytes, nleft, nwritten, nread;
+    ssize_t n;
     socklen_t addrlen;
     struct addrinfo hints, *res;
     struct sockaddr_in addr;
