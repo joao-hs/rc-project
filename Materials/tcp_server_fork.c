@@ -36,20 +36,32 @@ ssize_t complete_read(int fd, char * buffer, ssize_t n) {
     ssize_t nread = 0;
     char *ptr = buffer;
 
-    while (nleft > 0) {
+    while (nleft > 0 && buffer[n-nleft-1] != '\n') {
         nread = read(fd, ptr, nleft);
         if (nread == -1) return -1;
         else if (nread == 0) return n - nleft;
         nleft -= nread;
         ptr += nread;
     }
-    return n;
+    return n-nleft;
+}
+
+
+int listener;
+int newfd;
+
+void handler(int dummy) {
+    close(listener);
+    close(newfd);
+    exit(1);
 }
 
 
 int main(int argc, char *argv[]) {
     int verbose = FALSE;
-    int listener, errcode, newfd, ret;
+    //int listener
+    //int newfd
+    int errcode, ret;
     ssize_t n;
     socklen_t addrlen;
     struct addrinfo hints, *res;
@@ -57,6 +69,9 @@ int main(int argc, char *argv[]) {
     char buffer[128];
     struct sigaction act;
     pid_t pid;
+
+    // Remove after debug
+    signal(SIGINT, handler);
 
     if (argc == 2) {
         if (strcmp("-v", argv[1]) == 0) verbose = TRUE;
@@ -103,7 +118,9 @@ int main(int argc, char *argv[]) {
 
     /** Bind local host to listener */
     if (verbose) printf("Binding local host to listener\n");
-    n = bind(listener, res->ai_addr, res->ai_addrlen);
+    do { // when the socket was not closed in the last use, it needs some time to be binded again.
+        n = bind(listener, res->ai_addr, res->ai_addrlen);
+    } while (n == -1);
     if (n == -1) {
         write(2, "ERROR: Bind was not successful.\n", 32);
         exit(1);
