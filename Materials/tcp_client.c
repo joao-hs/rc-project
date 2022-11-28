@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -8,13 +9,43 @@
 #include <string.h>
 #define PORT "58001"
 
+ssize_t complete_write(int fd, char * buffer, ssize_t n) {
+    ssize_t nleft = n;
+    ssize_t nwritten = 0;
+    char *ptr = buffer;
+
+    while (nleft > 0) {
+        nwritten = write(fd, ptr, nleft);
+        if (nwritten <= 0) return -1;
+        nleft -= nwritten;
+        ptr += nwritten;
+    }
+    return n;
+}
+
+ssize_t complete_read(int fd, char * buffer, ssize_t n) {
+    ssize_t nleft = n;
+    ssize_t nread = 0;
+    char *ptr = buffer;
+
+    while (nleft > 0) {
+        nread = read(fd, ptr, nleft);
+        if (nread == -1) return -1;
+        else if (nread == 0) return n - nleft;
+        nleft -= nread;
+        ptr += nread;
+    }
+    return n;
+}
+
+
 int main() {
     int fd, errcode, newfd;
-    ssize_t n;
+    ssize_t n, nbytes, nleft, nwritten, nread;
     socklen_t addrlen;
     struct addrinfo hints, *res;
     struct sockaddr_in addr;
-    char buffer[128];
+    char in_buffer[128], out_buffer[128];
 
     fd = socket(AF_INET, SOCK_STREAM, 0); // TCP socket
     if (fd == -1) {
@@ -38,20 +69,18 @@ int main() {
         exit(1);
     }
 
-    n = write(fd, "Hello World!\n", 13); // Sending message to server's socket
-    if (n == -1) {
+    if ((n = complete_write(fd, "Hello World!\n", 13)) == -1) {
         write(2, "ERROR: Message was not written to socket.\n", 42);
         exit(1);
     }
 
-    n = read(fd, buffer,128); // Reading message from server's socket
-    if (n == -1) {
+    if ((n = complete_read(fd, out_buffer, 13)) == -1) {
         write(2, "ERROR: Message was not received from socket.\n", 45);
         exit(1);
     }
 
     write(1, "message: ", 9); 
-    write(1, buffer,n);
+    write(1, out_buffer, n);
 
     freeaddrinfo(res);
     close(fd);
