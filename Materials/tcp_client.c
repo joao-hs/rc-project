@@ -84,7 +84,7 @@ int main() {
         exit(1);
     }
 
-    if ((n = complete_read(fd, out_buffer, 13)) == -1) {
+    if ((n = complete_read(fd, out_buffer, n)) == -1) {
         write(2, "ERROR: Message was not received from socket.\n", 45);
         exit(1);
     }
