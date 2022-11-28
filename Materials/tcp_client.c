@@ -9,6 +9,8 @@
 #include <string.h>
 #include <signal.h>
 #define PORT "58001"
+#define TRUE 1
+#define FALSE 0
 
 ssize_t complete_write(int fd, char * buffer, ssize_t n) {
     ssize_t nleft = n;
@@ -40,7 +42,8 @@ ssize_t complete_read(int fd, char * buffer, ssize_t n) {
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
+    int verbose = FALSE;
     int fd, errcode, newfd;
     ssize_t n;
     socklen_t addrlen;
@@ -49,41 +52,52 @@ int main() {
     char in_buffer[128], out_buffer[128];
     struct sigaction act;
 
+    if (argc == 2) {
+        if (strcmp("-v", argv[1]) == 0) verbose = TRUE;
+    }
+
+    if (verbose) printf("Ignoring SIGPIPE signals\n");
     memset(&act, 0, sizeof(act));
     act.sa_handler = SIG_IGN;
 
     if (sigaction(SIGPIPE, &act, NULL) == -1) {
-        write(2, "ERROR: Could not set to ignore SIGPIPE signal.\n", 41);
+        write(2, "ERROR: Could not set to ignore SIGPIPE signal.\n", 47);
         exit(1);
     }
 
+    if (verbose) printf("Creating socket\n");
     fd = socket(AF_INET, SOCK_STREAM, 0); // TCP socket
     if (fd == -1) {
         write(2, "ERROR: Socket was not created correctly.\n", 41);
         exit(1);
     }
 
+    if (verbose) printf("Setting up Hints\n");
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; // IPv4 ; use AF_INET6 for IPv6
     hints.ai_socktype = SOCK_STREAM; // TCP socket
 
+    if (verbose) printf("Getting address info\n");
     errcode = getaddrinfo(NULL, PORT, &hints, &res);
     if (errcode != 0) {
         write(2, "ERROR: Address information was not received.\n", 45);
         exit(1);
     }
 
+    if (verbose) printf("Connection request to host\n");
     n = connect(fd, res->ai_addr,res->ai_addrlen); // Connection request to server
     if (n == -1) {
         write(2, "ERROR: Connection was not sucessful.\n", 37);
         exit(1);
     }
 
+    if (verbose) printf("Writing message in host's socket\n");
     if ((n = complete_write(fd, "Hello World!\n", 13)) == -1) {
         write(2, "ERROR: Message was not written to socket.\n", 42);
         exit(1);
     }
 
+    if (verbose) printf("Reading message from host's socket\n");
     if ((n = complete_read(fd, out_buffer, n)) == -1) {
         write(2, "ERROR: Message was not received from socket.\n", 45);
         exit(1);
