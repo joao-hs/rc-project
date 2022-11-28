@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <string.h>
+#include <signal.h>
 #define PORT "58001"
 
 ssize_t complete_write(int fd, char * buffer, ssize_t n) {
@@ -46,6 +47,15 @@ int main() {
     struct addrinfo hints, *res;
     struct sockaddr_in addr;
     char in_buffer[128], out_buffer[128];
+    struct sigaction act;
+
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = SIG_IGN;
+
+    if (sigaction(SIGPIPE, &act, NULL) == -1) {
+        write(2, "ERROR: Could not set to ignore SIGPIPE signal.\n", 41);
+        exit(1);
+    }
 
     fd = socket(AF_INET, SOCK_STREAM, 0); // TCP socket
     if (fd == -1) {
