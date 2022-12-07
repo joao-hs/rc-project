@@ -5,10 +5,19 @@ CFLAGS=-Wall
 all: player #GS
 
 player: interface.o player.o
-	$(CC) $(CFLAGS) -o player interface.o player.o
+	$(CC) $(CFLAGS) -o bin/player bin/interface.o bin/player.o
 
-#GS: interface.o GS.o
-#	$(CC) $(CFLAGS) -o GS interface.o GS.o
+GS: interface.o GS.o
+	$(CC) $(CFLAGS) -o GS interface.o GS.o
+
+interface.o:
+	$(CC) $(CFLAGS) -o bin/interface.o -c src/interface.c
+
+player.o:
+	$(CC) $(CFLAGS) -o bin/player.o -c src/player.c
+
+GS.o:
+	$(CC) $(CFLAGS) -o bin/GS.o -c src/GS.c
 
 clean:
-	rm -f interface.o player.o GS.o player GS
+	rm -f bin/interface.o bin/player.o bin/GS.o bin/player bin/GS
