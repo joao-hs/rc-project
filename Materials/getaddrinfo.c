@@ -27,7 +27,7 @@ struct explained_in_addr {
     uint32_t            s_addr;             // 32 bits
 };
 
-uint32_t ntohl(uint32_t netlong); // (Network TO Host Long)
+uint32_t explained_ntohl(uint32_t netlong); // (Network TO Host Long)
 // Network byte order -> Big Endian
 
 
