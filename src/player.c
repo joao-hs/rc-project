@@ -16,14 +16,19 @@
 #define DEFAULT_PORT "58011"
 #define D_HOST_LEN sizeof DEFAULT_HOSTNAME
 #define D_PORT_LEN sizeof DEFAULT_PORT
+
 extern int errno;
 
 int main(int argc, char * argv[]) {
     int verbose = FALSE; // !! [DEBUG]
-    //int i, notex = 1;
     char buf[MAXCOM];
+    char IPv4_addr[INET_ADDRSTRLEN];
     char * hostname = DEFAULT_HOSTNAME; // !! free after use
     char port[MAXPORT];
+    int udp_socket, tcp_socket;
+    struct addrinfo hints, *udp_addr, *tcp_addr;
+    struct in_addr *addr;
+
     memcpy(port, DEFAULT_PORT, D_PORT_LEN);
 
     if (parse_cli(argc, argv, &hostname, port, &verbose) == -1) {
@@ -32,10 +37,46 @@ int main(int argc, char * argv[]) {
     }
     if (verbose) printf("host: %s\nport: %s\nverbose: %d\n", hostname, port, verbose);
     
-    if(parse_input(buf) == -1){
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_CANONNAME;
+
+    if (getaddrinfo(hostname, port, &hints, &udp_addr) != 0) {
+        fprintf(stderr, "[ERROR] Getting UDP address information.\n");
+    }
+    if (verbose) {
+        addr = &((struct sockaddr_in *)udp_addr->ai_addr)->sin_addr;
+        printf("%s IPv4 address for UDP connections: %s\n", udp_addr->ai_canonname, inet_ntop(udp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
+    }
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+
+    if (getaddrinfo(hostname, port, &hints, &tcp_addr) != 0) {
+        fprintf(stderr, "[ERROR] Getting TCP address information.\n");
+    }
+    if (verbose) {
+        addr = &((struct sockaddr_in *)tcp_addr->ai_addr)->sin_addr;
+        printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
+    }
+
+    
+    if (parse_input(buf) == -1){
         exit(1);
     }
 
+    /* send to server's socket (either UDP or TCP) */
+
+    /* create thread to handle request: */
+    /* if TCP connect + write */
+    /* if UDP sendto */
+    /* repeat */
+
+    freeaddrinfo(udp_addr);
+    freeaddrinfo(tcp_addr);
     free(hostname);
     return 0;
 }
