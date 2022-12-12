@@ -87,6 +87,98 @@ int parse_input(char * message) {
     return 0;
 }
 
+int is_start(const char * command, size_t command_length) {
+    if (command_length == 5)
+        return memcmp(command, "start", command_length);
+    if (command_length == 2)
+        return memcmp(command, "sg", command_length);
+    return -1;
+}
+
+int is_play(const char * command, size_t command_length) {
+    if (command_length == 4)
+        return memcmp(command, "play", command_length);
+    if (command_length == 2)
+        return memcmp(command, "pl", command_length);
+    return -1;
+}
+
+int is_guess(const char * command, size_t command_length) {
+    if (command_length == 5)
+        return memcmp(command, "guess", command_length);
+    if (command_length == 2)
+        return memcmp(command, "gw", command_length);
+    return -1;
+}
+
+int is_quit(const char * command, size_t command_length) {
+    if (command_length == 4) {
+        return memcmp(command, "quit", command_length) *
+            memcmp(command, "exit", command_length);
+    }
+    return -1;
+}
+
+int is_rev(const char * command, size_t command_length) {
+    if (command_length == 3)
+        return memcmp(command, "rev", command_length);
+    return -1;
+}
+
+int is_scoreboard(const char * command, size_t command_length) {
+    if (command_length == 10)
+        return memcmp(command, "scoreboard", command_length);
+    if (command_length == 2)
+        return memcmp(command, "sb", command_length);
+    return -1;
+}
+
+int is_hint(const char * command, size_t command_length) {
+    if (command_length == 4)
+        return memcmp(command, "hint", command_length);
+    if (command_length == 1)
+        return memcmp(command, "h", command_length);
+    return -1;
+}
+
+int is_state(const char * command, size_t command_length) {
+    if (command_length == 5)
+        return memcmp(command, "state", command_length);
+    if (command_length == 2)
+        return memcmp(command, "st", command_length);
+    return -1;
+}
+
+int get_command_id_UDP(const char * command, size_t command_length, char * cmd_id) {
+    if (is_start(command, command_length) == 0) {
+        memcpy(cmd_id, "SNG", CMD_ID_LEN);
+    } else if (is_play(command, command_length) == 0) {
+        memcpy(cmd_id, "PLG", CMD_ID_LEN);
+    } else if (is_guess(command, command_length) == 0) {
+        memcpy(cmd_id, "PWG", CMD_ID_LEN);
+    } else if (is_quit(command, command_length) == 0) {
+        memcpy(cmd_id, "QUT", CMD_ID_LEN);
+    } else if (is_rev(command, command_length) == 0) {
+        memcpy(cmd_id, "REV", CMD_ID_LEN);
+    } else {
+        return -1;
+    }
+    return 0;
+}
+
+int get_command_id_TCP(const char * command, size_t command_length, char * cmd_id) {
+    if (is_scoreboard(command, command_length) == 0) {
+        memcpy(cmd_id, "GSB", CMD_ID_LEN);
+    } else if (is_hint(command, command_length) == 0) {
+        memcpy(cmd_id, "GHL", CMD_ID_LEN);
+    } else if (is_state(command, command_length) == 0) {
+        memcpy(cmd_id, "STA", CMD_ID_LEN);
+    } else {
+        return -1;
+    }
+    return 0;
+}
+
 int cmd_start(char * dest, char * plid) {
     char * ptr = dest;
     char padded_plid[] = "000000";
