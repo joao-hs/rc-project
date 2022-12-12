@@ -40,7 +40,9 @@ state\n                                 STA <PLID>\n                        RST 
 st\n                                    STA <PLID>\n                        RST <status> [<Fname> <Fsize> <Fdata>]\n
 */
 
-
+/*
+Parse command line arguments and set the variables accordingly
+*/
 int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verbose) {
     size_t len;
     int n = 0, i = 1;
@@ -73,7 +75,7 @@ int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verb
     }
     return n;
 }
- 
+
 /*
 Translates input from player to readable message to server.
 Returns -1 if not recognizable.
