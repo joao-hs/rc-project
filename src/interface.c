@@ -179,21 +179,6 @@ int get_command_id_TCP(const char * command, size_t command_length, char * cmd_i
     return 0;
 }
 
-int cmd_start(char * dest, char * plid) {
-    char * ptr = dest;
-    char padded_plid[] = "000000";
-    memcpy(ptr, START_MSG, sizeof(START_MSG) - 1);
-    ptr += sizeof(START_MSG) - 1;
-    memcpy(ptr, SPACE, sizeof(SPACE) - 1);
-    ptr += sizeof(SPACE);
-
-    if (snprintf(padded_plid, MAX_PLID, "%06d", plid) == -1) return -1;
-    memcpy(ptr, padded_plid, sizeof(MAX_PLID));
-    ptr += sizeof(MAX_PLID);
-    memcpy(ptr, ENDLN, sizeof(ENDLN));
-    return 0;
-}
-
 void init_cmd(CMD * new_cmd) {
     if (new_cmd == NULL) return;
     new_cmd->id[0] = '\0';
@@ -202,16 +187,4 @@ void init_cmd(CMD * new_cmd) {
     new_cmd->letter = '\0';
     new_cmd->trial_no = -1;
     return;
-}
-
-int cmd_start(CMD * dest, char * plid) {
-    size_t len;
-    memcpy(dest->id, START_MSG, sizeof(START_MSG));
-    if ((len = strlen(plid)) == PLID_LEN)
-        memcpy(dest->plid, plid, PLID_LEN);
-    else if (len < PLID_LEN){
-        memcpy(dest->plid, "000000", PLID_LEN);
-        memcpy(dest->plid + PLID_LEN - len, plid, len);
-    } else return -1;
-    return 0;
 }
