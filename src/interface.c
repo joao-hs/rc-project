@@ -77,8 +77,13 @@ int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verb
 }
 
 /*
-Translates input from player to readable message to server.
-Returns -1 if not recognizable.
+Parses command from player to the according message protocol to server.
+Returns:
+    * -1, if not recognizable;
+    * 0, if "exit";
+    * 1, if "quit";
+    * any number < 0, if it's sent through TCP
+    * any number >= 0, if it's sent through UDP
 */
 int parse_input(char * message, int * player_id) {
     // ? Obter palavra de input -> Redirecionar -> Obter mais se for preciso ?

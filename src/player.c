@@ -36,7 +36,7 @@ int main(int argc, char * argv[]) {
         exit(1);
     }
     if (verbose) printf("host: %s\nport: %s\nverbose: %d\n", hostname, port, verbose);
-    
+
     if (udp_socket = socket(AF_INET, SOCK_DGRAM, 0) == -1) {
         fprintf(stderr, "[ERROR] Creating UDP socket.\n");
         exit(1);
@@ -79,9 +79,6 @@ int main(int argc, char * argv[]) {
         }
         
     }
-    // d = -1 -> erro no input -> continue
-    // d = 0 -> exit app -> enviar mensagem + sair da app
-    // d = 1 -> reset game state -> enviar mensagem + reset + continue
 
 
     /* send to server's socket (either UDP or TCP) */
