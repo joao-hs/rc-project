@@ -1,6 +1,6 @@
 #define TRUE 1
 #define FALSE 0
-#define MAXCOM 15
+#define MAXMESSAGE CMD_ID_LEN + 1 + WORD_MAX + 1
 #define CMD_ID_LEN 3
 #define FEED_ID_LEN 3
 #define STATUS_LEN 3
