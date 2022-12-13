@@ -82,8 +82,8 @@ Returns:
     * -1, if not recognizable;
     * 0, if "exit";
     * 1, if "quit";
-    * any number < 0, if it's sent through TCP
-    * any number >= 0, if it's sent through UDP
+    * length, if it's sent through UDP (except for "exit" and "quit")
+    * -length, if it's sent through TCP
 */
 int parse_input(char * message, int * player_id) {
     // ? Obter palavra de input -> Redirecionar -> Obter mais se for preciso ?
