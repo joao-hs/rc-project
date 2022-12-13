@@ -21,13 +21,17 @@ extern int errno;
 
 int main(int argc, char * argv[]) {
     int verbose = FALSE; // !! [DEBUG]
-    char buf[MAXCOM];
+    char message[MAX_MESSAGE];
+    char udp_response[MAX_UDP_RESPONSE];
+    char tcp_response[MAX_TCP_RESPONSE];
     char IPv4_addr[INET_ADDRSTRLEN];
     char * hostname = DEFAULT_HOSTNAME; // !! free after use
-    char port[MAXPORT];
+    char port[MAX_PORT];
     int udp_socket, tcp_socket;
+    int in_code, udp_code, tcp_code;
     struct addrinfo hints, *udp_addr, *tcp_addr;
     struct in_addr *addr;
+    socklen_t addrlen;
 
     memcpy(port, DEFAULT_PORT, D_PORT_LEN);
 
@@ -54,6 +58,7 @@ int main(int argc, char * argv[]) {
 
     if (getaddrinfo(hostname, port, &hints, &udp_addr) != 0) {
         fprintf(stderr, "[ERROR] Getting UDP address information.\n");
+        exit(1);
     }
     if (verbose) {
         addr = &((struct sockaddr_in *)udp_addr->ai_addr)->sin_addr;
@@ -67,6 +72,7 @@ int main(int argc, char * argv[]) {
 
     if (getaddrinfo(hostname, port, &hints, &tcp_addr) != 0) {
         fprintf(stderr, "[ERROR] Getting TCP address information.\n");
+        exit(1);
     }
     if (verbose) {
         addr = &((struct sockaddr_in *)tcp_addr->ai_addr)->sin_addr;
@@ -74,8 +80,28 @@ int main(int argc, char * argv[]) {
     }
 
     while (1) {
-        if ((d = parse_input(buf)) == -1){
+        if ((in_code = parse_input(message)) == -1){
+            /* Handle incorrect input*/
             exit(1);
+        }
+        if (in_code >= 0) { // send message via UDP
+            if (in_code == 0)
+                udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
+            else if (in_code == 1)
+                udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
+            else
+                udp_code = sendto(udp_socket, message, in_code, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
+            
+            if (udp_code == -1) {
+                fprintf(stderr, "[ERROR] Sending message to server.\n");
+                exit(1);
+            }
+            addrlen = sizeof(addr);
+            udp_code = recvfrom(udp_socket, message, (struct sockaddr*) &addr, &addrlen);
+            if (udp_code == -1) {
+                fprintf(stderr, "[ERROR] Receiving message from server.\n");
+                exit(1);
+            }
         }
         
     }
