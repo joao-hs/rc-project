@@ -37,6 +37,16 @@ int main(int argc, char * argv[]) {
     }
     if (verbose) printf("host: %s\nport: %s\nverbose: %d\n", hostname, port, verbose);
     
+    if (udp_socket = socket(AF_INET, SOCK_DGRAM, 0) == -1) {
+        fprintf(stderr, "[ERROR] Creating UDP socket.\n");
+        exit(1);
+    }
+    
+    if (tcp_socket = socket(AF_INET, SOCK_STREAM, 0) == -1) {
+        fprintf(stderr, "[ERROR] Creating TCP socket.\n");
+        exit(1);
+    }
+
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
