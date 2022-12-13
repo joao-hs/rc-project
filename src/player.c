@@ -63,10 +63,16 @@ int main(int argc, char * argv[]) {
         printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
 
-    
-    if (parse_input(buf) == -1){
-        exit(1);
+    while (1) {
+        if ((d = parse_input(buf)) == -1){
+            exit(1);
+        }
+        
     }
+    // d = -1 -> erro no input -> continue
+    // d = 0 -> exit app -> enviar mensagem + sair da app
+    // d = 1 -> reset game state -> enviar mensagem + reset + continue
+
 
     /* send to server's socket (either UDP or TCP) */
 
