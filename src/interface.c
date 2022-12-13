@@ -85,35 +85,74 @@ Returns:
     * length, if it's sent through UDP (except for "exit" and "quit")
     * -length, if it's sent through TCP
 */
-int parse_input(char * message, int * player_id) {
+int parse_input(char * message, int * pid) {
+    // "guess "(6)+[longest word in portuguese](46)+"\nØ"(2) = 54
+    char buffer[54];
+    char command[6];
+    char info[47];
+    fgets(buffer, 54, stdin);
+    sscanf(buffer, "%s %s", command, info);
+    if(is_start(command, strlen(command))){
+        if(strlen(info) != 6){
+            return -1;
+        }
+    }
+    else if(is_play(command, strlen(command))){
+        if(pid == NULL || strlen(info) != 1){
+            return -1;
+        }
+        if(info[0] < "A" || info[0] > "z" || (info[0] > "Z" && info[0] < "a")){
+            return -1;
+        }
+    }
+    else if(is_guess(command, strlen(command))){
+        if(pid == NULL){
+            return -1;
+        }
+    }
+    else if(is_rev(command, srtlen(command))){
+        if(pid == NULL){
+            return -1;
+        }
+    }
+    else if(is_quit(command, strlen(command))){
+        if(pid == NULL){
+            return -1;
+        }
+    }
+    else if(is_exit(command, lenght(command))){
+        if(pid == NULL){
+            return -1;
+        }
+    }
     // ? Obter palavra de input -> Redirecionar -> Obter mais se for preciso ?
     // Nova ideia
     // ? Estrutura CMD -> redirecionar para comando certo -> Preencher campos CMD -> traduzir CMD p/ string
-    return 0;
+    return -1;
 }
 
 int is_start(const char * command, size_t command_length) {
     if (command_length == 5)
-        return memcmp(command, "start", command_length);
+        return !memcmp(command, "start", command_length);
     if (command_length == 2)
-        return memcmp(command, "sg", command_length);
-    return -1;
+        return !memcmp(command, "sg", command_length);
+    return 0;
 }
 
 int is_play(const char * command, size_t command_length) {
     if (command_length == 4)
-        return memcmp(command, "play", command_length);
+        return !memcmp(command, "play", command_length);
     if (command_length == 2)
-        return memcmp(command, "pl", command_length);
-    return -1;
+        return !memcmp(command, "pl", command_length);
+    return 0;
 }
 
 int is_guess(const char * command, size_t command_length) {
     if (command_length == 5)
-        return memcmp(command, "guess", command_length);
+        return !memcmp(command, "guess", command_length);
     if (command_length == 2)
-        return memcmp(command, "gw", command_length);
-    return -1;
+        return !memcmp(command, "gw", command_length);
+    return 0;
 }
 
 /*
@@ -122,40 +161,44 @@ Else returns -1.
 */
 int is_quit(const char * command, size_t command_length) {
     if (command_length == 4) {
-        if (memcmp(command, "quit", command_length) == 0)
-            return 0;
-        if (memcmp(command, "exit", command_length) == 0)
-            return 1;
+        return !memcmp(command, "quit", command_length);
     }
-    return -1;
+    return 0;
+}
+
+int is_exit(const char * command, size_t command_length){
+    if (command_length == 4) {
+        return !memcmp(command, "exit", command_length);
+    }
+    return 0;
 }
 
 int is_rev(const char * command, size_t command_length) {
     if (command_length == 3)
-        return memcmp(command, "rev", command_length);
-    return -1;
+        return !memcmp(command, "rev", command_length);
+    return 0;
 }
 
 int is_scoreboard(const char * command, size_t command_length) {
     if (command_length == 10)
-        return memcmp(command, "scoreboard", command_length);
+        return !memcmp(command, "scoreboard", command_length);
     if (command_length == 2)
-        return memcmp(command, "sb", command_length);
-    return -1;
+        return !memcmp(command, "sb", command_length);
+    return 0;
 }
 
 int is_hint(const char * command, size_t command_length) {
     if (command_length == 4)
-        return memcmp(command, "hint", command_length);
+        return !memcmp(command, "hint", command_length);
     if (command_length == 1)
-        return memcmp(command, "h", command_length);
-    return -1;
+        return !memcmp(command, "h", command_length);
+    return 0;
 }
 
 int is_state(const char * command, size_t command_length) {
     if (command_length == 5)
-        return memcmp(command, "state", command_length);
+        return !memcmp(command, "state", command_length);
     if (command_length == 2)
-        return memcmp(command, "st", command_length);
-    return -1;
+        return !memcmp(command, "st", command_length);
+    return 0;
 }

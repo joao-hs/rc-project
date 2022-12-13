@@ -27,4 +27,4 @@ typedef struct feedback {
 } Feedback;
 
 int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verbose);
-int parse_input(char * message);
+int parse_input(char * message, int *pid);
