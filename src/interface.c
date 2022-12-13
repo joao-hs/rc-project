@@ -51,17 +51,17 @@ int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verb
         if (argv[i][0] != '-') return -1;
         switch (argv[i][1]) {
             case 'n':
-                *hostname = (char *)malloc(sizeof(char) * (MAXHOST + 1));
-                if ((len = strlen(argv[i+1])) > MAXHOST) // Prevent overflow
-                    argv[i+1][MAXHOST] = '\0';
-                strncpy(*hostname, argv[i+1], MAXHOST + 1);
+                *hostname = (char *)malloc(sizeof(char) * (MAX_HOST + 1));
+                if ((len = strlen(argv[i+1])) > MAX_HOST) // Prevent overflow
+                    argv[i+1][MAX_HOST] = '\0';
+                strncpy(*hostname, argv[i+1], MAX_HOST + 1);
                 i++; // Ignore next word
                 n++;
                 break;
             case 'p':
-                if ((len = strlen(argv[i+1])) > MAXPORT) // Prevent overflow
-                    argv[i+1][MAXPORT] = '\0';
-                strncpy(port, argv[i+1], MAXPORT + 1);
+                if ((len = strlen(argv[i+1])) > MAX_PORT) // Prevent overflow
+                    argv[i+1][MAX_PORT] = '\0';
+                strncpy(port, argv[i+1], MAX_PORT + 1);
                 i++; // Ignore next word
                 n++;
                 break;

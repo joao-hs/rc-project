@@ -1,5 +1,7 @@
 #include "common.h"
 
+#define QUT_MESSAGE_LEN CMD_ID_LEN + 1 + PLID_LEN + 1
+
 typedef struct cmd {
     char id[CMD_ID_LEN];
     char plid[PLID_LEN];
@@ -15,7 +17,7 @@ typedef struct file_info {
 } File;
 
 typedef struct feedback {
-    char id[FEED_ID_LEN];
+    char id[CMD_ID_LEN];
     char status[STATUS_LEN];
     char word[WORD_MAX];
     int trial_no;
