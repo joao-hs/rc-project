@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-Wall
 
 
-all: player #GS
+all: player GS
 
 player: interface.o player.o
 	$(CC) $(CFLAGS) -o player bin/interface.o bin/player.o
