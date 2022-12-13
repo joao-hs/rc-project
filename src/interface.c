@@ -80,7 +80,7 @@ int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verb
 Translates input from player to readable message to server.
 Returns -1 if not recognizable.
 */
-int parse_input(char * message) {
+int parse_input(char * message, int * player_id) {
     // ? Obter palavra de input -> Redirecionar -> Obter mais se for preciso ?
     // Nova ideia
     // ? Estrutura CMD -> redirecionar para comando certo -> Preencher campos CMD -> traduzir CMD p/ string
@@ -111,10 +111,16 @@ int is_guess(const char * command, size_t command_length) {
     return -1;
 }
 
+/*
+If command is "quit", returns 0. If command is "exit" returns 1.
+Else returns -1.
+*/
 int is_quit(const char * command, size_t command_length) {
     if (command_length == 4) {
-        return memcmp(command, "quit", command_length) *
-            memcmp(command, "exit", command_length);
+        if (memcmp(command, "quit", command_length) == 0)
+            return 0;
+        if (memcmp(command, "exit", command_length) == 0)
+            return 1;
     }
     return -1;
 }
@@ -147,44 +153,4 @@ int is_state(const char * command, size_t command_length) {
     if (command_length == 2)
         return memcmp(command, "st", command_length);
     return -1;
-}
-
-int get_command_id_UDP(const char * command, size_t command_length, char * cmd_id) {
-    if (is_start(command, command_length) == 0) {
-        memcpy(cmd_id, "SNG", CMD_ID_LEN);
-    } else if (is_play(command, command_length) == 0) {
-        memcpy(cmd_id, "PLG", CMD_ID_LEN);
-    } else if (is_guess(command, command_length) == 0) {
-        memcpy(cmd_id, "PWG", CMD_ID_LEN);
-    } else if (is_quit(command, command_length) == 0) {
-        memcpy(cmd_id, "QUT", CMD_ID_LEN);
-    } else if (is_rev(command, command_length) == 0) {
-        memcpy(cmd_id, "REV", CMD_ID_LEN);
-    } else {
-        return -1;
-    }
-    return 0;
-}
-
-int get_command_id_TCP(const char * command, size_t command_length, char * cmd_id) {
-    if (is_scoreboard(command, command_length) == 0) {
-        memcpy(cmd_id, "GSB", CMD_ID_LEN);
-    } else if (is_hint(command, command_length) == 0) {
-        memcpy(cmd_id, "GHL", CMD_ID_LEN);
-    } else if (is_state(command, command_length) == 0) {
-        memcpy(cmd_id, "STA", CMD_ID_LEN);
-    } else {
-        return -1;
-    }
-    return 0;
-}
-
-void init_cmd(CMD * new_cmd) {
-    if (new_cmd == NULL) return;
-    new_cmd->id[0] = '\0';
-    new_cmd->plid[0] = '\0';
-    new_cmd->word[0] = '\0';
-    new_cmd->letter = '\0';
-    new_cmd->trial_no = -1;
-    return;
 }
