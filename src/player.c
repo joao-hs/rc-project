@@ -1,16 +1,5 @@
 #include "common.h"
 #include "interface.h"
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <string.h>
-#include <signal.h>
-
-#include <stdio.h>
 
 #define DEFAULT_HOSTNAME NULL
 #define DEFAULT_PORT "58011"
@@ -23,7 +12,7 @@ int main(int argc, char * argv[]) {
     int verbose = FALSE; // !! [DEBUG]
     char message[MAX_MESSAGE];
     char udp_response[MAX_UDP_RESPONSE];
-    char tcp_response[MAX_TCP_RESPONSE];
+    char tcp_response[10];
     char IPv4_addr[INET_ADDRSTRLEN];
     char * hostname = DEFAULT_HOSTNAME; // !! free after use
     char port[MAX_PORT];
@@ -41,12 +30,12 @@ int main(int argc, char * argv[]) {
     }
     if (verbose) printf("host: %s\nport: %s\nverbose: %d\n", hostname, port, verbose);
 
-    if (udp_socket = socket(AF_INET, SOCK_DGRAM, 0) == -1) {
+    if ((udp_socket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         fprintf(stderr, "[ERROR] Creating UDP socket.\n");
         exit(1);
     }
     
-    if (tcp_socket = socket(AF_INET, SOCK_STREAM, 0) == -1) {
+    if ((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "[ERROR] Creating TCP socket.\n");
         exit(1);
     }
@@ -54,7 +43,7 @@ int main(int argc, char * argv[]) {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_CANONNAME;
+    hints.ai_flags = AI_CANONNAME; // ? maybe there's no need
 
     if (getaddrinfo(hostname, port, &hints, &udp_addr) != 0) {
         fprintf(stderr, "[ERROR] Getting UDP address information.\n");
@@ -68,7 +57,7 @@ int main(int argc, char * argv[]) {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_CANONNAME;
+    hints.ai_flags = AI_CANONNAME; // ? maybe there's no need
 
     if (getaddrinfo(hostname, port, &hints, &tcp_addr) != 0) {
         fprintf(stderr, "[ERROR] Getting TCP address information.\n");
@@ -79,13 +68,15 @@ int main(int argc, char * argv[]) {
         printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
     //Para tirar
-    int pid;
+    char plid[PLID_LEN];
+    int trial = 0;
     // end
     while (1) {
-        if ((in_code = parse_input(message, pid)) == -1){
-            /* Handle incorrect input*/
+        if ((in_code = parse_input(message, plid, trial)) == -1){
+            /* Handle incorrect input */
             exit(1);
         }
+        if (verbose) printf("Input code: %d\nMessage: '%s'\n", in_code, message);
         if (in_code >= 0) { // send message via UDP
             if (in_code == 0)
                 udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
@@ -98,23 +89,39 @@ int main(int argc, char * argv[]) {
                 fprintf(stderr, "[ERROR] Sending message to server.\n");
                 exit(1);
             }
+            
             addrlen = sizeof(addr);
-            udp_code = recvfrom(udp_socket, message, (struct sockaddr*) &addr, &addrlen);
+            udp_code = recvfrom(udp_socket, udp_response, MAX_UDP_RESPONSE, 0, (struct sockaddr*) &addr, &addrlen);
             if (udp_code == -1) {
                 fprintf(stderr, "[ERROR] Receiving message from server.\n");
                 exit(1);
             }
+            if (verbose) {
+                *(udp_response + udp_code) = '\0';
+                printf("Response: '%s'\n", udp_response);
+            }
+        } else { // send message via TCP
+            tcp_code = connect(tcp_socket, tcp_addr->ai_addr, tcp_addr->ai_addrlen);
+            if (tcp_code == -1) {
+                fprintf(stderr, "[ERROR] Establishing connection to server.\n");
+                exit(1);
+            }
+
+            if ((tcp_code = complete_write(tcp_socket, message, in_code)) == -1) {
+                fprintf(stderr, "[ERROR] Sending message to server.\n");
+                exit(1);
+            }
+
+            if ((tcp_code = complete_read(tcp_socket, tcp_response, MAX_TCP_RESPONSE)) == -1) {
+                fprintf(stderr, "[ERROR] Receiving message from server.\n");
+                exit(1);
+            }
+            if (verbose) {
+                *(tcp_response + tcp_code) = '\0';
+                printf("Response: '%s'\n", tcp_response);
+            }
         }
-        
     }
-
-
-    /* send to server's socket (either UDP or TCP) */
-
-    /* create thread to handle request: */
-    /* if TCP connect + write */
-    /* if UDP sendto */
-    /* repeat */
 
     freeaddrinfo(udp_addr);
     freeaddrinfo(tcp_addr);

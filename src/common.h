@@ -5,6 +5,7 @@
 #define PLID_LEN 6
 #define WORD_MIN 3
 #define WORD_MAX 30
+#define MAX_COMMAND 10
 #define FNAME_LEN 24
 #define FSIZE_LEN 10
 #define FDATA_MAX 1073741824
@@ -19,3 +20,13 @@
 #define MAX(x, y) ({__typeof__ (x) _x = (x); __typeof__ (y) _y = (y); _x > _y ? _x : _y;})
 #define MIN(x, y) ({__typeof__ (x) _x = (x); __typeof__ (y) _y = (y); _x <= _y ? _x : _y;})
 
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <signal.h>
