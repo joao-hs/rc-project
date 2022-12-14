@@ -162,30 +162,20 @@ Returns:
     * -length, if it's sent through TCP
 */
 int parse_input(char * message, char * plid, int trial) {
-    printf("inside\n");
     char buffer[WORD_MAX+8];
     char command[MAX_COMMAND+1];
     char info[WORD_MAX+1];
     char c[2];
-    printf("fgets\n");
     fgets(buffer, WORD_MAX+8, stdin);
-    printf("sscanf\n");
     sscanf(buffer, "%s %s", command, info);
-    printf("start\n");
     if(is_start(command, strnlen(command, MAX_COMMAND))){
-        printf("inside start\n");
         if(!is_id(info, strnlen(info, WORD_MAX))){
             return -1;
         }
-        printf("memcpy\n");
         memcpy(plid, "000000", 6);
         memcpy((plid + 6 - strnlen(info, WORD_MAX)), info, 6);
-        //memcpy(plid, info, strnlen(info, WORD_MAX));
-        printf("snprintf\n");
-        snprintf(message, 12, "SNG %s\n", plid);
-        printf(message);
-        printf("return\n");
-        return strnlen(message, 11);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "SNG %s\n", plid);
+        return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     }
     else if(is_play(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
@@ -194,71 +184,59 @@ int parse_input(char * message, char * plid, int trial) {
         if(strnlen(info, WORD_MAX) != 1 || info[0] < 'A' || info[0] > 'z' || (info[0] > 'Z' && info[0] < 'a')){
             return -1;
         }
-        printf("is play\n");
         memcpy(c, info, strnlen(info, WORD_MAX));
-        snprintf(message, 16, "PLG %s %s %d\n", plid, c, trial);
-        return strnlen(message, 16);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2, "PLG %s %s %d\n", plid, c, trial);
+        return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2);
     }
     else if(is_guess(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is guess\n");
-        snprintf(message, 15+WORD_MAX, "PWG %s %s %d\n", plid, info, trial);
-        return strnlen(message, 15+WORD_MAX);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 2, "PWG %s %s %d\n", plid, info, trial);
+        return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 1);
     }
     else if(is_rev(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is rev\n");
-        snprintf(message, 11, "REV %s\n", plid);
-        return strnlen(message, 11);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "REV %s\n", plid);
+        return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     }
     else if(is_quit(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is quit\n");
-        snprintf(message, 11, "QUT %s\n", plid);
+        snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", plid);
         return 1;
     }
     else if(is_exit(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is exit\n");
-        snprintf(message, 11, "QUT %s\n", plid);
+        snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", plid);
         return 0;
     }
     else if(is_scoreboard(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is scoreboard\n");
-        memcpy(message, "GSB\n", sizeof("GSB\n"));
-        return strnlen(message, 4);
+        memcpy(message, "GSB\n", strlen("GSB\n"));
+        return -strnlen(message, 4);
     }
     else if(is_hint(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is hint\n");
-        snprintf(message, 11, "GHL %s\n", plid);
-        return strnlen(message, 11);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "GHL %s\n", plid);
+        return -strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     }
     else if(is_state(command, strnlen(command, MAX_COMMAND))){
         if(plid == NULL){
             return -1;
         }
-        printf("is state\n");
-        snprintf(message, 11, "STA %s\n", plid);
-        return strnlen(message, 11);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "STA %s\n", plid);
+        return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     }
-    printf("Error in parsing\n");
-    // ? Obter palavra de input -> Redirecionar -> Obter mais se for preciso ?
-    // Nova ideia
-    // ? Estrutura CMD -> redirecionar para comando certo -> Preencher campos CMD -> traduzir CMD p/ string
     return -1;
 }
 

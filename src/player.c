@@ -107,12 +107,12 @@ int main(int argc, char * argv[]) {
                 exit(1);
             }
 
-            if ((tcp_code = complete_write(tcp_socket, message, in_code)) == -1) {
+            if ((tcp_code = complete_write(tcp_socket, message, -in_code)) == -1) {
                 fprintf(stderr, "[ERROR] Sending message to server.\n");
                 exit(1);
             }
 
-            if ((tcp_code = complete_read(tcp_socket, tcp_response, MAX_TCP_RESPONSE)) == -1) {
+            if ((tcp_code = complete_read(tcp_socket, tcp_response, 10)) == -1) {
                 fprintf(stderr, "[ERROR] Receiving message from server.\n");
                 exit(1);
             }
@@ -126,6 +126,8 @@ int main(int argc, char * argv[]) {
     freeaddrinfo(udp_addr);
     freeaddrinfo(tcp_addr);
     free(hostname);
+    close(udp_socket);
+    close(tcp_socket);
     return 0;
 }
 
