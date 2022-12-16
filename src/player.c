@@ -1,5 +1,6 @@
 #include "common.h"
 #include "interface.h"
+#include "socket.h"
 
 #define DEFAULT_HOSTNAME NULL
 #define DEFAULT_PORT "58011"
@@ -12,7 +13,7 @@ int main(int argc, char * argv[]) {
     int verbose = FALSE; // !! [DEBUG]
     char message[MAX_MESSAGE];
     char udp_response[MAX_UDP_RESPONSE];
-    char tcp_response[10];
+    //char tcp_response[10];
     char IPv4_addr[INET_ADDRSTRLEN];
     char * hostname = DEFAULT_HOSTNAME; // !! free after use
     char port[MAX_PORT];
@@ -112,14 +113,15 @@ int main(int argc, char * argv[]) {
                 exit(1);
             }
 
-            if ((tcp_code = complete_read(tcp_socket, tcp_response, 10)) == -1) {
+            //if ((tcp_code = process_response(tcp_socket, )))
+            /* if ((tcp_code = complete_read(tcp_socket, tcp_response, 10)) == -1) {
                 fprintf(stderr, "[ERROR] Receiving message from server.\n");
                 exit(1);
             }
             if (verbose) {
                 *(tcp_response + tcp_code) = '\0';
                 printf("Response: '%s'\n", tcp_response);
-            }
+            } */
         }
     }
 
