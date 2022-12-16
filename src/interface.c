@@ -1,5 +1,5 @@
-#include "common.h"
 #include "interface.h"
+#include "socket.h"
 
 #define SPACE ' '
 #define ENDLN '\n'
@@ -152,6 +152,78 @@ int is_id(const char * plid, size_t plid_length){
     return 1;
 }
 
+int is_r_start(const char * cmd_id) {
+    return !memcmp(cmd_id, "RSG\0", CMD_ID_LEN + 1);
+}
+
+int is_r_play(const char * cmd_id) {
+    return !memcmp(cmd_id, "RLG\0", CMD_ID_LEN + 1);
+}
+
+int is_r_guess(const char * cmd_id) {
+    return !memcmp(cmd_id, "RWG\0", CMD_ID_LEN + 1);
+}
+
+int is_r_quit(const char * cmd_id) {
+    return !memcmp(cmd_id, "RQT\0", CMD_ID_LEN + 1);
+}
+
+int is_r_rev(const char * cmd_id) {
+    return !memcmp(cmd_id, "RRV\0", CMD_ID_LEN + 1);
+}
+
+int is_r_scoreboard(const char * cmd_id) {
+    return !memcmp(cmd_id, "RSB\0", CMD_ID_LEN + 1);
+}
+
+int is_r_hint(const char * cmd_id) {
+    return !memcmp(cmd_id, "RHL\0", CMD_ID_LEN + 1);
+}
+
+int is_r_state(const char * cmd_id) {
+    return !memcmp(cmd_id, "RST\0", CMD_ID_LEN + 1);
+}
+
+int is_st_ok(const char * status) {
+    return !memcmp(status, "OK\0", 3);
+}
+
+int is_st_win(const char * status) {
+    return !memcmp(status, "WIN\0", 4);
+}
+
+int is_st_act(const char * status) {
+    return !memcmp(status, "ACT\0", 4);
+}
+
+int is_st_fin(const char * status) {
+    return !memcmp(status, "FIN\0", 4);
+}
+
+int is_st_dup(const char * status) {
+    return !memcmp(status, "DUP\0", 4);
+}
+
+int is_st_nok(const char * status) {
+    return !memcmp(status, "NOK\0", 4);
+}
+
+int is_st_ovr(const char * status) {
+    return !memcmp(status, "OVR\0", 4);
+}
+
+int is_st_inv(const char * status) {
+    return !memcmp(status, "INV\0", 4);
+}
+
+int is_st_err(const char * status) {
+    return !memcmp(status, "ERR\0", 4);
+}
+
+int is_st_empty(const char * status) {
+    return !memcmp(status, "EMPTY\0", 4);
+}
+
 /*
 Parses command from player to the according message protocol to server.
 Returns:
@@ -240,31 +312,46 @@ int parse_input(char * message, char * plid, int trial) {
     return -1;
 }
 
-ssize_t complete_write(int fd, char * buffer, ssize_t n) {
-    ssize_t nleft = n;
-    ssize_t nwritten = 0;
-    char *ptr = buffer;
+/*
+Receives command id and status. Returns the bytes left
+to read from socket to file, or -1 for errors.
+*/
+ssize_t parse_tcp_header(int fd, File * f) {
+    char buffer[CMD_ID_LEN + 1 + STATUS_LEN + 1 + FNAME_LEN + 1 + FSIZE_LEN + 2];
+    char cmd_id[CMD_ID_LEN + 1];
+    char status[STATUS_LEN + 1];
+    int n_var;
+    ssize_t n;
 
-    while (nleft > 0) {
-        nwritten = write(fd, ptr, nleft);
-        if (nwritten <= 0) return -1;
-        nleft -= nwritten;
-        ptr += nwritten;
+    n = complete_read(fd, buffer, CMD_ID_LEN + 1 + STATUS_LEN + 1 + FNAME_LEN + 1 + FSIZE_LEN + 2);
+    if (n == -1) return -1;
+    n_var = sscanf(buffer, "%s %s %s %ld ", cmd_id, status, f->f_name, &(f->f_size));
+    if (n_var < 1) return -1;
+    if (is_r_scoreboard(cmd_id)) {
+        if (is_st_empty(status)) return 0;
+        if (is_st_ok(status)) {
+            if (n_var != 4) return -1;
+            if (!is_valid_fname(f->f_name)) return -1;
+            return f->f_size;
+        }
+    } else if (is_r_hint(cmd_id)) {
+        if (is_st_ok(status)) {
+            if (n_var != 4) return -1;
+            if (!is_valid_fname(f->f_name)) return -1;
+            return f->f_size;
+        }
+    } else if (is_r_state(cmd_id)) {
+        if (is_st_act(status)) {
+            if (n_var != 4) return -1;
+            if (!is_valid_fname(f->f_name)) return -1;
+            return f->f_size;
+        }
+        if (is_st_fin(status)) {
+            if (n_var != 4) return -1;
+            if (!is_valid_fname(f->f_name)) return -1;
+            return f->f_size;
+        }
+        if (is_st_nok(status)) return 0;
     }
-    return n;
-}
-
-ssize_t complete_read(int fd, char * buffer, ssize_t n) {
-    ssize_t nleft = n;
-    ssize_t nread = 0;
-    char *ptr = buffer;
-
-    while (nleft > 0) {
-        nread = read(fd, ptr, nleft);
-        if (nread == -1) return -1;
-        else if (nread == 0) return n - nleft;
-        nleft -= nread;
-        ptr += nread;
-    }
-    return n;
+    return -1;
 }
