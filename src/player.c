@@ -22,8 +22,11 @@ int main(int argc, char * argv[]) {
     struct addrinfo hints, *udp_addr, *tcp_addr;
     struct in_addr *addr;
     socklen_t addrlen;
+    F_INFO recv_f;
 
     memcpy(port, DEFAULT_PORT, D_PORT_LEN);
+    recv_f.f_size = 0;
+    recv_f.f_data = NULL;
 
     if (parse_cli(argc, argv, &hostname, port, &verbose) == -1) {
         fprintf(stderr, "[ERROR] Parsing command line parameters.\n");
@@ -113,7 +116,19 @@ int main(int argc, char * argv[]) {
                 exit(1);
             }
 
-            //if ((tcp_code = process_response(tcp_socket, )))
+            if ((tcp_code = parse_tcp_header(tcp_socket, &recv_f)) == -1) {
+                fprintf(stderr, "[ERROR] 'Error' response or wrong format.\n");
+                exit(1);
+            }
+            if (verbose) printf("File name: %s\nFile size: %ld\n", recv_f.f_name, recv_f.f_size);
+            if (tcp_code > 0) {
+                recv_f.f = fopen(recv_f.f_name, "w");
+                if ((tcp_code = complete_read_to_file(tcp_socket, recv_f.f, recv_f.f_size)) != recv_f.f_size) {
+                    fprintf(stderr, "[ERROR] Incomplete or corrupted writing.\n");
+                    exit(1);
+                }
+                fclose(recv_f.f);
+            }
             /* if ((tcp_code = complete_read(tcp_socket, tcp_response, 10)) == -1) {
                 fprintf(stderr, "[ERROR] Receiving message from server.\n");
                 exit(1);
