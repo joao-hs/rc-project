@@ -9,13 +9,13 @@
 
 extern int errno;
 
-int main(int argc, char * argv[]) {
+int main(int argc, char *argv[]) {
     int verbose = FALSE; // !! [DEBUG]
     char message[MAX_MESSAGE];
     char udp_response[MAX_UDP_RESPONSE];
-    //char tcp_response[10];
+    // char tcp_response[10];
     char IPv4_addr[INET_ADDRSTRLEN];
-    char * hostname = DEFAULT_HOSTNAME; // !! free after use
+    char *hostname = DEFAULT_HOSTNAME; // !! free after use
     char port[MAX_PORT];
     int udp_socket, tcp_socket;
     int in_code, udp_code, tcp_code;
@@ -32,13 +32,14 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "[ERROR] Parsing command line parameters.\n");
         exit(1);
     }
-    if (verbose) printf("host: %s\nport: %s\nverbose: %d\n", hostname, port, verbose);
+    if (verbose)
+        printf("host: %s\nport: %s\nverbose: %d\n", hostname, port, verbose);
 
     if ((udp_socket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         fprintf(stderr, "[ERROR] Creating UDP socket.\n");
         exit(1);
     }
-    
+
     if ((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "[ERROR] Creating TCP socket.\n");
         exit(1);
@@ -71,16 +72,17 @@ int main(int argc, char * argv[]) {
         addr = &((struct sockaddr_in *)tcp_addr->ai_addr)->sin_addr;
         printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
-    //Para tirar
+    // Para tirar
     char plid[PLID_LEN];
     int trial = 0;
     // end
     while (1) {
-        if ((in_code = parse_input(message, plid, trial)) == -1){
+        if ((in_code = parse_input(message, plid, trial)) == -1) {
             /* Handle incorrect input */
             exit(1);
         }
-        if (verbose) printf("Input code: %d\nMessage: '%s'\n", in_code, message);
+        if (verbose)
+            printf("Input code: %d\nMessage: '%s'\n", in_code, message);
         if (in_code >= 0) { // send message via UDP
             if (in_code == 0)
                 udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
@@ -88,14 +90,14 @@ int main(int argc, char * argv[]) {
                 udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
             else
                 udp_code = sendto(udp_socket, message, in_code, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
-            
+
             if (udp_code == -1) {
                 fprintf(stderr, "[ERROR] Sending message to server.\n");
                 exit(1);
             }
-            
+
             addrlen = sizeof(addr);
-            udp_code = recvfrom(udp_socket, udp_response, MAX_UDP_RESPONSE, 0, (struct sockaddr*) &addr, &addrlen);
+            udp_code = recvfrom(udp_socket, udp_response, MAX_UDP_RESPONSE, 0, (struct sockaddr *)&addr, &addrlen);
             if (udp_code == -1) {
                 fprintf(stderr, "[ERROR] Receiving message from server.\n");
                 exit(1);
@@ -120,7 +122,8 @@ int main(int argc, char * argv[]) {
                 fprintf(stderr, "[ERROR] 'Error' response or wrong format.\n");
                 exit(1);
             }
-            if (verbose) printf("File name: %s\nFile size: %ld\n", recv_f.f_name, recv_f.f_size);
+            if (verbose)
+                printf("File name: %s\nFile size: %ld\n", recv_f.f_name, recv_f.f_size);
             if (tcp_code > 0) {
                 recv_f.f = fopen(recv_f.f_name, "w");
                 if ((tcp_code = complete_read_to_file(tcp_socket, recv_f.f, recv_f.f_size)) != recv_f.f_size) {
@@ -147,4 +150,3 @@ int main(int argc, char * argv[]) {
     close(tcp_socket);
     return 0;
 }
-
