@@ -16,9 +16,10 @@ typedef struct feedback {
     char word[WORD_MAX];
     int trial_no;
     int hit_no;
-    int * pos;
-    File * file;
+    int *pos;
+    F_INFO *f;
 } Feedback;
 
-int parse_cli(int argc, char * argv[], char ** hostname, char * port, int * verbose);
-int parse_input(char * message, char * plid, int trial);
+int parse_cli(int argc, char *argv[], char **hostname, char *port, int *verbose);
+int parse_input(char *message, char *plid, int trial);
+int parse_tcp_header(int fd, F_INFO *f);
