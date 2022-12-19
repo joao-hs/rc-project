@@ -73,12 +73,8 @@ int main(int argc, char *argv[]) {
         addr = &((struct sockaddr_in *)tcp_addr->ai_addr)->sin_addr;
         printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
-    // Para tirar
-    //char plid[PLID_LEN];
-    int trial = 0;
-    // end
     while (1) {
-        if ((in_code = parse_input(message, trial)) == -1) {
+        if ((in_code = parse_input(message)) == -1) {
             /* Handle incorrect input */
             exit(1);
         }
