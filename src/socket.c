@@ -1,6 +1,6 @@
 #include "socket.h"
 
-#define BLOCK_SIZE 256
+#define BLOCK_SIZE 1024
 
 ssize_t complete_write(int fd, char *buffer, ssize_t n) {
     ssize_t nleft = n;
@@ -101,6 +101,7 @@ ssize_t complete_read_to_file(int src, FILE *dest, ssize_t n) {
         printf(buffer);
         nleft -= nread;
     }
+    printf("\n");
     fflush(dest);
     return n - nleft;
 }
