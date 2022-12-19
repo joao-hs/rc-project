@@ -4,20 +4,20 @@ CFLAGS=-Wall
 
 all: player GS
 
-player: interface.o socket.o game.o player.o
-	$(CC) $(CFLAGS) -o player bin/interface.o bin/socket.o bin/game.o bin/player.o
+player: socket.o game.o interface.o player.o
+	$(CC) $(CFLAGS) -o player bin/socket.o bin/game.o bin/interface.o bin/player.o
 
-GS: interface.o socket.o GS.o
-	$(CC) $(CFLAGS) -o GS bin/interface.o bin/socket.o bin/GS.o
-
-interface.o:
-	$(CC) $(CFLAGS) -o bin/interface.o -c src/interface.c
+GS: socket.o interface.o game.o GS.o
+	$(CC) $(CFLAGS) -o GS bin/socket.o bin/game.o bin/interface.o bin/GS.o
 
 socket.o:
 	$(CC) $(CFLAGS) -o bin/socket.o -c src/socket.c
 
 game.o:
 	$(CC) $(CFLAGS) -o bin/game.o -c src/game.c
+
+interface.o:
+	$(CC) $(CFLAGS) -o bin/interface.o -c src/interface.c
 
 player.o:
 	$(CC) $(CFLAGS) -o bin/player.o -c src/player.c
