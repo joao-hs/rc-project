@@ -11,7 +11,7 @@
 extern int errno;
 
 int main(int argc, char *argv[]) {
-    int verbose = FALSE; // !! [DEBUG]
+    int verbose = FALSE, aux = TRUE; // !! [DEBUG]
     char message[MAX_MESSAGE];
     char udp_response[MAX_UDP_RESPONSE];
     // char tcp_response[10];
@@ -41,10 +41,10 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if ((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    /* if ((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "[ERROR] Creating TCP socket.\n");
         exit(1);
-    }
+    } */
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
     while (1) {
         if ((in_code = parse_input(message)) == -1) {
             /* Handle incorrect input */
-            exit(1);
+            continue;
         }
         if (verbose)
             printf("Input code: %d\nMessage: '%s'\n", in_code, message);
@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
             }
             process_udp_response(udp_response, udp_code);
         } else { // send message via TCP
+            tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
             tcp_code = connect(tcp_socket, tcp_addr->ai_addr, tcp_addr->ai_addrlen);
             if (tcp_code == -1) {
                 fprintf(stderr, "[ERROR] Establishing connection to server.\n");
@@ -130,6 +131,7 @@ int main(int argc, char *argv[]) {
                 }
                 fclose(recv_f.f);
             }
+            close(tcp_socket);
         }
     }
 
@@ -137,6 +139,5 @@ int main(int argc, char *argv[]) {
     freeaddrinfo(tcp_addr);
     free(hostname);
     close(udp_socket);
-    close(tcp_socket);
     return 0;
 }
