@@ -114,6 +114,7 @@ void start_game(char *output, int n_letters, int max_errors) {
         game_state.word[i+1] = ' ';
     }
     game_state.word_len = n_letters;
+    game_state.word[game_state.word_len*2] = '\0';
     game_state.no_tries = 1;
     game_state.max_errors = max_errors;
     sprintf(output, "New game started (max %d errors): %s\n", game_state.max_errors, game_state.word);
@@ -131,6 +132,12 @@ void play_game(char *output, int n, int pos[]) {
 }
 
 void win_game(char *output) {
+    char c = get_last_letter();
+    for (int i = 0; i < game_state.word_len; i += 2) {
+        if (game_state.word[i] == '_')
+            game_state.word[i] = c;
+    }
+    right_try();
     sprintf(output, "WELL DONE! You guessed %s\n", game_state.word);
 }
 
@@ -140,7 +147,7 @@ void guess_game(char *output, char *word) {
             game_state.word[i] = word[i/2];
     }
     right_try();
-    win_game(output);
+    sprintf(output, "WELL DONE! You guessed %s\n", game_state.word);
 }
 
 void quit_game() {
