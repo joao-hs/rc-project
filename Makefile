@@ -4,6 +4,9 @@ CFLAGS=-Wall
 
 all: player GS
 
+debug: CFLAGS += -g
+debug: all
+
 player: socket.o game.o interface.o player.o
 	$(CC) $(CFLAGS) -o player bin/socket.o bin/game.o bin/interface.o bin/player.o
 
