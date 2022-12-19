@@ -259,7 +259,7 @@ int parse_input(char *message) {
         }
         c = *info;
         if (c >= 'a' && c <= 'z')
-            c += 'A';
+            c += 'A' - 'a';
         if (!(c >= 'A' && c <= 'Z'))
             return -1;
         set_last_letter(c);
@@ -290,11 +290,9 @@ int parse_input(char *message) {
         snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", get_plid());
         return 0;
     } else if (is_scoreboard(command, strnlen(command, MAX_COMMAND))) {
-        if (get_plid() == NULL) {
-            return -1;
-        }
-        memcpy(message, "GSB\n", strlen("GSB\n"));
-        return -strnlen(message, 4);
+        char sc[5] = "GSB\n";
+        strcpy(message, sc);
+        return -strnlen(message, 5);
     } else if (is_hint(command, strnlen(command, MAX_COMMAND))) {
         if (get_plid() == NULL) {
             return -1;
@@ -425,7 +423,7 @@ int process_udp_response(char *response, int nbytes) {
                 else
                     ptr += 2 + 1;
             }   
-            play_game(buffer, a, pos);
+            play_game(buffer, b, pos);
             printf(buffer);
             return 0;
         } else if (is_st_win(status)) {
