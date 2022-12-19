@@ -84,7 +84,7 @@ ssize_t complete_read_file_info(int fd, char *buffer) {
 
 ssize_t complete_read_to_file(int src, FILE *dest, ssize_t n) {
     char buffer[BLOCK_SIZE + 1];
-    ssize_t nleft = n;
+    ssize_t nleft = n + 1;
     ssize_t nread = 0;
 
     while (nleft > 0) {
@@ -96,12 +96,9 @@ ssize_t complete_read_to_file(int src, FILE *dest, ssize_t n) {
             return -1;
         else if (nread == 0)
             break;
-        *(buffer + nread) = '\0';
-        fprintf(dest, buffer);
-        printf(buffer);
+        fwrite(buffer, sizeof(char), nread, dest);
         nleft -= nread;
     }
-    printf("\n");
     fflush(dest);
     return n - nleft;
 }
