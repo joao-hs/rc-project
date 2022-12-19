@@ -1,5 +1,6 @@
 #include "interface.h"
 #include "socket.h"
+#include "game.h"
 
 #define SPACE ' '
 #define ENDLN '\n'
@@ -235,7 +236,7 @@ Returns:
     * length, if it's sent through UDP (except for "exit" and "quit")
     * -length, if it's sent through TCP
 */
-int parse_input(char *message, char *plid, int trial) {
+int parse_input(char *message, int trial) {
     char buffer[WORD_MAX + 8];
     char command[MAX_COMMAND + 1];
     char info[WORD_MAX + 1];
@@ -246,61 +247,60 @@ int parse_input(char *message, char *plid, int trial) {
         if (!is_id(info, strnlen(info, WORD_MAX))) {
             return -1;
         }
-        memcpy(plid, "000000", 6);
-        memcpy((plid + 6 - strnlen(info, WORD_MAX)), info, 6);
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "SNG %s\n", plid);
+        init_game(info);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "SNG %s\n", get_plid());
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     } else if (is_play(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
         if (strnlen(info, WORD_MAX) != 1 || info[0] < 'A' || info[0] > 'z' || (info[0] > 'Z' && info[0] < 'a')) {
             return -1;
         }
         memcpy(c, info, strnlen(info, WORD_MAX));
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2, "PLG %s %s %d\n", plid, c, trial);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2, "PLG %s %s %d\n", get_plid(), c, trial);
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2);
     } else if (is_guess(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 2, "PWG %s %s %d\n", plid, info, trial);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 2, "PWG %s %s %d\n", get_plid(), info, trial);
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 1);
     } else if (is_rev(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "REV %s\n", plid);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "REV %s\n", get_plid());
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     } else if (is_quit(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", plid);
+        snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", get_plid());
         return 1;
     } else if (is_exit(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", plid);
+        snprintf(message, QUT_MESSAGE_LEN + 1, "QUT %s\n", get_plid());
         return 0;
     } else if (is_scoreboard(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
         memcpy(message, "GSB\n", strlen("GSB\n"));
         return -strnlen(message, 4);
     } else if (is_hint(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "GHL %s\n", plid);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "GHL %s\n", get_plid());
         return -strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     } else if (is_state(command, strnlen(command, MAX_COMMAND))) {
-        if (plid == NULL) {
+        if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "STA %s\n", plid);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 2, "STA %s\n", get_plid());
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1);
     }
     return -1;
@@ -379,6 +379,54 @@ int parse_tcp_header(int fd, F_INFO *f) {
         }
         if (is_st_nok(status))
             return 0;
+    }
+    return -1;
+}
+
+int process_udp_response(char *response, int udp_code){
+    char buffer[MAX_UDP_RESPONSE+1];
+    char code[CMD_ID_LEN + 1];
+    char status[STATUS_LEN + 1];
+    int a, b;
+    sscanf(response, "%s %s %d %d", code, status, &a, &b);
+    if(is_r_start(code)){
+        if(is_st_ok(status)){
+            start_game(buffer, a, b);
+            printf(buffer);
+            return 0;
+        }
+        else if(is_st_nok(status)){
+            printf("Error: Unable to initialize a new game. Unfinished game already exists."); 
+        }
+        return -1;
+    }
+    else if(is_r_play(code)){
+        if(is_st_ok(status)){
+        }
+        else if(is_st_win(status)){
+        }
+        else if(is_st_dup(status)){
+        }
+        else if(is_st_nok(status)){
+        }
+        else if(is_st_ovr(status)){
+        }
+        else if(is_st_inv(status)){
+            printf("Error: Invalid trial num");   
+        }
+        else if(is_st_err(status)){
+            printf("Error: Wrong play request");
+        }
+        return -1;
+    }
+    else if(is_r_guess(code)){
+
+    }
+    else if(is_r_quit(code)){
+
+    }
+    else if(is_r_rev(code)){
+        
     }
     return -1;
 }

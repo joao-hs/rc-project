@@ -1,6 +1,7 @@
 #include "common.h"
 #include "interface.h"
 #include "socket.h"
+#include "game.h"
 
 #define DEFAULT_HOSTNAME NULL
 #define DEFAULT_PORT "58011"
@@ -73,11 +74,11 @@ int main(int argc, char *argv[]) {
         printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
     // Para tirar
-    char plid[PLID_LEN];
+    //char plid[PLID_LEN];
     int trial = 0;
     // end
     while (1) {
-        if ((in_code = parse_input(message, plid, trial)) == -1) {
+        if ((in_code = parse_input(message, trial)) == -1) {
             /* Handle incorrect input */
             exit(1);
         }
@@ -106,6 +107,7 @@ int main(int argc, char *argv[]) {
                 *(udp_response + udp_code) = '\0';
                 printf("Response: '%s'\n", udp_response);
             }
+            process_udp_response(udp_response, udp_code);
         } else { // send message via TCP
             tcp_code = connect(tcp_socket, tcp_addr->ai_addr, tcp_addr->ai_addrlen);
             if (tcp_code == -1) {
@@ -132,14 +134,6 @@ int main(int argc, char *argv[]) {
                 }
                 fclose(recv_f.f);
             }
-            /* if ((tcp_code = complete_read(tcp_socket, tcp_response, 10)) == -1) {
-                fprintf(stderr, "[ERROR] Receiving message from server.\n");
-                exit(1);
-            }
-            if (verbose) {
-                *(tcp_response + tcp_code) = '\0';
-                printf("Response: '%s'\n", tcp_response);
-            } */
         }
     }
 
