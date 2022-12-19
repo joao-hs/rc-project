@@ -1,6 +1,6 @@
 #include "interface.h"
-#include "socket.h"
 #include "game.h"
+#include "socket.h"
 
 #define SPACE ' '
 #define ENDLN '\n'
@@ -236,11 +236,11 @@ Returns:
     * length, if it's sent through UDP (except for "exit" and "quit")
     * -length, if it's sent through TCP
 */
-int parse_input(char *message, int trial) {
+int parse_input(char *message) {
     char buffer[WORD_MAX + 8];
     char command[MAX_COMMAND + 1];
     char info[WORD_MAX + 1];
-    char c[2];
+    char c;
     fgets(buffer, WORD_MAX + 8, stdin);
     sscanf(buffer, "%s %s", command, info);
     if (is_start(command, strnlen(command, MAX_COMMAND))) {
@@ -257,14 +257,19 @@ int parse_input(char *message, int trial) {
         if (strnlen(info, WORD_MAX) != 1 || info[0] < 'A' || info[0] > 'z' || (info[0] > 'Z' && info[0] < 'a')) {
             return -1;
         }
-        memcpy(c, info, strnlen(info, WORD_MAX));
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2, "PLG %s %s %d\n", get_plid(), c, trial);
+        c = *info;
+        if (c >= 'a' && c <= 'z')
+            c += 'A';
+        if (!(c >= 'A' && c <= 'Z'))
+            return -1;
+        set_last_letter(c);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2, "PLG %s %c %d\n", get_plid(), c, get_no_tries());
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + 1 + 1 + 2 + 2);
     } else if (is_guess(command, strnlen(command, MAX_COMMAND))) {
         if (get_plid() == NULL) {
             return -1;
         }
-        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 2, "PWG %s %s %d\n", get_plid(), info, trial);
+        snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 2, "PWG %s %s %d\n", get_plid(), info, get_no_tries());
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 1);
     } else if (is_rev(command, strnlen(command, MAX_COMMAND))) {
         if (get_plid() == NULL) {
@@ -383,50 +388,67 @@ int parse_tcp_header(int fd, F_INFO *f) {
     return -1;
 }
 
-int process_udp_response(char *response, int udp_code){
-    char buffer[MAX_UDP_RESPONSE+1];
+int process_udp_response(char *response, int nbytes) {
+    char buffer[100];
     char code[CMD_ID_LEN + 1];
     char status[STATUS_LEN + 1];
-    int a, b;
+    int a, b, i, aux;
+    int *pos;
+    char *ptr;
     sscanf(response, "%s %s %d %d", code, status, &a, &b);
-    if(is_r_start(code)){
-        if(is_st_ok(status)){
+    if (is_r_start(code)) {
+        if (is_st_ok(status)) {
             start_game(buffer, a, b);
             printf(buffer);
             return 0;
-        }
-        else if(is_st_nok(status)){
-            printf("Error: Unable to initialize a new game. Unfinished game already exists."); 
-        }
-        return -1;
-    }
-    else if(is_r_play(code)){
-        if(is_st_ok(status)){
-        }
-        else if(is_st_win(status)){
-        }
-        else if(is_st_dup(status)){
-        }
-        else if(is_st_nok(status)){
-        }
-        else if(is_st_ovr(status)){
-        }
-        else if(is_st_inv(status)){
-            printf("Error: Invalid trial num");   
-        }
-        else if(is_st_err(status)){
-            printf("Error: Wrong play request");
+        } else if (is_st_nok(status)) {
+            printf("Error: Unable to initialize a new game. Unfinished game already exists.\n");
         }
         return -1;
-    }
-    else if(is_r_guess(code)){
+    } else if (is_r_play(code)) {
+        if (is_st_ok(status)) {
+            ptr = response + (CMD_ID_LEN + 1 + 2 + 1);
+            if (a < 10)
+                ptr += 1 + 1;
+            else
+                ptr += 2 + 1;
+            if (b < 10)
+                ptr += 1 + 1;
+            else
+                ptr += 2 + 1;
+            pos = (int *)malloc(b * sizeof(int));
+            for (i = 0; i < b; i++) {
+                sscanf(ptr, "%d", &aux);
+                pos[i] = aux;
+                if (pos[i] < 10)
+                    ptr += 1 + 1;
+                else
+                    ptr += 2 + 1;
+            }   
+            play_game(buffer, a, pos);
+            printf(buffer);
+            return 0;
+        } else if (is_st_win(status)) {
+            win_game(buffer);
+            printf(buffer);
+            return 0;
+        } else if (is_st_dup(status)) {
+            printf("Error: Duplicate guess.\n");
+        } else if (is_st_nok(status)) {
+            printf("The letter doesn't exist in the word. You can only fail %d more time(s).\n", wrong_try());
+        } else if (is_st_ovr(status)) {
+            printf("GAME OVER!\n");
+        } else if (is_st_inv(status)) {
+            printf("Error: Invalid trial number.\n");
+        } else if (is_st_err(status)) {
+            printf("Error: Wrong play request.\n");
+        }
+        return -1;
+    } else if (is_r_guess(code)) {
 
-    }
-    else if(is_r_quit(code)){
+    } else if (is_r_quit(code)) {
 
-    }
-    else if(is_r_rev(code)){
-        
+    } else if (is_r_rev(code)) {
     }
     return -1;
 }
