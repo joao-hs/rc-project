@@ -1,4 +1,4 @@
-#include "game.h"
+#include "session.h"
 #include "socket.h"
 
 typedef struct state {
