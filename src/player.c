@@ -1,7 +1,6 @@
 #include "common.h"
 #include "interface.h"
 #include "socket.h"
-#include "game.h"
 
 #define DEFAULT_HOSTNAME NULL
 #define DEFAULT_PORT "58011"
@@ -11,7 +10,7 @@
 extern int errno;
 
 int main(int argc, char *argv[]) {
-    int verbose = FALSE, aux = TRUE; // !! [DEBUG]
+    int verbose = FALSE; // !! [DEBUG]
     char message[MAX_MESSAGE];
     char udp_response[MAX_UDP_RESPONSE];
     // char tcp_response[10];
@@ -41,15 +40,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    /* if ((tcp_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        fprintf(stderr, "[ERROR] Creating TCP socket.\n");
-        exit(1);
-    } */
-
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_CANONNAME; // ? maybe there's no need
 
     if (getaddrinfo(hostname, port, &hints, &udp_addr) != 0) {
         fprintf(stderr, "[ERROR] Getting UDP address information.\n");
@@ -57,13 +50,12 @@ int main(int argc, char *argv[]) {
     }
     if (verbose) {
         addr = &((struct sockaddr_in *)udp_addr->ai_addr)->sin_addr;
-        printf("%s IPv4 address for UDP connections: %s\n", udp_addr->ai_canonname, inet_ntop(udp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
+        printf("IPv4 address for UDP connections: %s\n", inet_ntop(udp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_CANONNAME; // ? maybe there's no need
 
     if (getaddrinfo(hostname, port, &hints, &tcp_addr) != 0) {
         fprintf(stderr, "[ERROR] Getting TCP address information.\n");
@@ -71,7 +63,7 @@ int main(int argc, char *argv[]) {
     }
     if (verbose) {
         addr = &((struct sockaddr_in *)tcp_addr->ai_addr)->sin_addr;
-        printf("%s IPv4 address for TCP connections: %s\n", tcp_addr->ai_canonname, inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
+        printf("IPv4 address for TCP connections: %s\n", inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
     while (1) {
         if ((in_code = parse_input(message)) == -1) {
