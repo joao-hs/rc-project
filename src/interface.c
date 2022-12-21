@@ -1,5 +1,6 @@
 #include "interface.h"
-#include "game.h"
+#include "games.h"
+#include "session.h"
 #include "socket.h"
 
 #define SPACE ' '
@@ -14,8 +15,8 @@ Commands:                               Send:                               Rece
 start <PLID(ex. 095538)>\n              SNG <PLID>\n                        RSG <status> [<n_letters> <max_errors>]\n
 sg <PLID(ex. 095538)>\n                 SNG <PLID>\n                        RSG <status> [<n_letters> <max_errors>]\n
 
-play <char>\n                           PLG <PLID> <char> <trial_no>\n      RLG <status> [<trial> <n> <pos>*]\n
-pl <char>\n                             PLG <PLID> <char> <trial_no>\n      RLG <status> [<trial> <n> <pos>*]\n
+play <char>\n                           PLG <PLID> <char> <trial_no>\n      RLG <status> <trial> [<n> <pos>*]\n
+pl <char>\n                             PLG <PLID> <char> <trial_no>\n      RLG <status> <trial> [<n> <pos>*]\n
 
 guess <word>\n                          PWG <PLID> <word> <trial_no>\n      RWG <status> <trials>\n
 gw <word>\n                             PWG <PLID> <word> <trial_no>\n      RWG <status> <trials>\n
@@ -74,6 +75,8 @@ int parse_cli(int argc, char *argv[], char **hostname, char *port, int *verbose)
     }
     return n;
 }
+
+/* COMMAND VERIFIERS */
 
 int is_start(const char *command, size_t command_length) {
     if (command_length == 5)
@@ -155,6 +158,8 @@ int is_id(const char *plid, size_t plid_length) {
     return 1;
 }
 
+/* RESPONSE COMMAND ID VERIFIERS */
+
 int is_r_start(const char *cmd_id) {
     return !memcmp(cmd_id, "RSG\0", CMD_ID_LEN + 1);
 }
@@ -186,6 +191,42 @@ int is_r_hint(const char *cmd_id) {
 int is_r_state(const char *cmd_id) {
     return !memcmp(cmd_id, "RST\0", CMD_ID_LEN + 1);
 }
+
+/* MESSAGE COMMAND VERIFIERS */
+
+int is_m_start(const char *cmd_id) {
+    return !memcmp(cmd_id, "SNG\0", CMD_ID_LEN + 1);
+}
+
+int is_m_play(const char *cmd_id) {
+    return !memcmp(cmd_id, "PLG\0", CMD_ID_LEN + 1);
+}
+
+int is_m_guess(const char *cmd_id) {
+    return !memcmp(cmd_id, "PWG\0", CMD_ID_LEN + 1);
+}
+
+int is_m_quit(const char *cmd_id) {
+    return !memcmp(cmd_id, "QUT\0", CMD_ID_LEN + 1);
+}
+
+int is_m_rev(const char *cmd_id) {
+    return !memcmp(cmd_id, "REV\0", CMD_ID_LEN + 1);
+}
+
+int is_m_scoreboard(const char *cmd_id) {
+    return !memcmp(cmd_id, "GSB\0", CMD_ID_LEN + 1);
+}
+
+int is_m_hint(const char *cmd_id) {
+    return !memcmp(cmd_id, "GHL\0", CMD_ID_LEN + 1);
+}
+
+int is_m_state(const char *cmd_id) {
+    return !memcmp(cmd_id, "STA\0", CMD_ID_LEN + 1);
+}
+
+/* STATUS VERIFIERS */
 
 int is_st_ok(const char *status) {
     return !memcmp(status, "OK\0", 3);
@@ -309,8 +350,26 @@ int parse_input(char *message) {
     return -1;
 }
 
+int is_letter(char c) {
+    if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
+        return TRUE;
+    return FALSE;
+}
+
 int is_valid_fname(char *fname) {
-    return 1;
+    while (*fname != '\0' && *fname != '.') {
+        if (!is_letter(*fname) && *fname != '-' && *fname != '_')
+            return FALSE;
+        fname++;
+    }
+    if (*fname == '\0')
+        return FALSE;
+    while (*fname != '\0') {
+        if (!is_letter(*fname))
+            return FALSE;
+        fname++;
+    }
+    return TRUE;
 }
 
 /*
@@ -422,7 +481,7 @@ int process_udp_response(char *response, int nbytes) {
                     ptr += 1 + 1;
                 else
                     ptr += 2 + 1;
-            }   
+            }
             play_game(buffer, b, pos);
             printf(buffer);
             return 0;
@@ -448,5 +507,61 @@ int process_udp_response(char *response, int nbytes) {
 
     } else if (is_r_rev(code)) {
     }
+    return -1;
+}
+
+int process_udp_message(char *response, char *message) {
+    char *m_ptr = message;
+    char cmd_id[CMD_ID_LEN + 1];
+    char plid[PLID_LEN + 1];
+    char word[WORD_MAX + 1];
+    char c;
+    int trial;
+
+    printf("Message: '%s'\n", message);
+
+    if (sscanf(m_ptr, "%s %s", cmd_id, plid) != 2)
+        return -1;
+    if (!is_id(plid, strlen(plid)))
+        return -1;
+    m_ptr += CMD_ID_LEN + 1 + PLID_LEN;
+    if (is_m_start(cmd_id)) {
+        printf("%d\n",*m_ptr);
+        if (*m_ptr != '\n')
+            return -1;
+        start_new_game(response, plid);
+    } else if (is_m_play(cmd_id)) {
+        if (sscanf(m_ptr, "%c %d", &c, &trial) != 2)
+            return -1;
+        m_ptr += 1 /*c*/ + 1 /* */ + 1 /*digit*/ + 1 /*\n*/;
+        if (trial > 10)
+            m_ptr += 1 /*extra_digit*/;
+        if (*m_ptr != '\n')
+            return -1;
+        play_letter_guess(response, plid, c, trial);
+    } else if (is_m_guess(cmd_id)) {
+        if (sscanf(m_ptr, "%s %d", word, &trial) != 2)
+            return -1;
+        m_ptr += strlen(word) + 1 /* */ + 1 + /*digit*/ + 1 /*\n*/;
+        if (trial > 10)
+            m_ptr += 1 /*extra_digit*/;
+        if (*m_ptr != '\n')
+            return -1;
+        play_word_guess(response, plid, word, trial);
+    } else if (is_m_quit(cmd_id)) {
+        if (*m_ptr != '\n')
+            return -1;
+        quit(response, plid);
+    } else if (is_m_rev(cmd_id)) {
+        if (*m_ptr != '\n')
+            return -1;
+        rev(response, plid);
+    } else {
+        return -1;
+    }
+    return 0;
+}
+
+int process_tcp_message(char *response, char *message) {
     return -1;
 }

@@ -24,3 +24,5 @@ int parse_cli(int argc, char *argv[], char **hostname, char *port, int *verbose)
 int parse_input(char *message);
 int parse_tcp_header(int fd, F_INFO *f);
 int process_udp_response(char *response, int udp_code);
+int process_udp_message(char *response, char *message);
+int process_tcp_message(char *response, char *message);
