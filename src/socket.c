@@ -89,9 +89,9 @@ ssize_t complete_read_to_file(int src, FILE *dest, ssize_t n) {
 
     while (nleft > 0) {
         if (nleft >= BLOCK_SIZE)
-            nread = read(src, buffer, BLOCK_SIZE);
+            nread = complete_read(src, buffer, BLOCK_SIZE);
         else
-            nread = read(src, buffer, nleft);
+            nread = complete_read(src, buffer, nleft);
         if (nread == -1)
             return -1;
         else if (nread == 0)
@@ -101,4 +101,25 @@ ssize_t complete_read_to_file(int src, FILE *dest, ssize_t n) {
     }
     fflush(dest);
     return n - nleft;
+}
+
+ssize_t complete_write_file_to_socket(FILE *src, int dest, ssize_t n) {
+    char buffer[BLOCK_SIZE + 1];
+    ssize_t nleft = n;
+    ssize_t nwrote = 0;
+
+    while (nleft > 0) {
+        if (nleft >= BLOCK_SIZE)
+            nwrote = fread(buffer, sizeof(char), BLOCK_SIZE, src);
+        else
+            nwrote = fread(buffer, sizeof(char), nleft, src);
+        if (nwrote == -1)
+            return -1;
+        else if (nwrote == 0)
+            break;
+        complete_write(dest, buffer, nwrote);
+        nleft -= nwrote;
+    }
+    complete_write(dest, "\n", sizeof(char));
+    return n - nleft + 1;
 }
