@@ -39,42 +39,6 @@ state\n                                 STA <PLID>\n                        RST 
 st\n                                    STA <PLID>\n                        RST <status> [<Fname> <Fsize> <Fdata>]\n
 */
 
-/*
-Parse command line arguments and set the variables accordingly
-*/
-int parse_cli(int argc, char *argv[], char **hostname, char *port, int *verbose) {
-    int n = 0, i = 1;
-    if (argc <= 1)
-        return n;
-    for (; i < argc; i++) {
-        if (argv[i][0] != '-')
-            return -1;
-        switch (argv[i][1]) {
-        case 'n':
-            *hostname = (char *)malloc(sizeof(char) * (MAX_HOST + 1));
-            if (strlen(argv[i + 1]) > MAX_HOST) // Prevent overflow
-                argv[i + 1][MAX_HOST] = '\0';
-            strncpy(*hostname, argv[i + 1], MAX_HOST + 1);
-            i++; // Ignore next word
-            n++;
-            break;
-        case 'p':
-            if (strlen(argv[i + 1]) > MAX_PORT) // Prevent overflow
-                argv[i + 1][MAX_PORT] = '\0';
-            strncpy(port, argv[i + 1], MAX_PORT + 1);
-            i++; // Ignore next word
-            n++;
-            break;
-        case 'v':
-            *verbose = TRUE;
-            n++;
-            break;
-        default:
-            return -1;
-        }
-    }
-    return n;
-}
 
 /* COMMAND VERIFIERS */
 
@@ -364,6 +328,7 @@ int is_valid_fname(char *fname) {
     }
     if (*fname == '\0')
         return FALSE;
+    fname++;
     while (*fname != '\0') {
         if (!is_letter(*fname))
             return FALSE;
@@ -518,7 +483,7 @@ int process_udp_message(char *response, char *message) {
     char c;
     int trial;
 
-    printf("Message: '%s'\n", message);
+    printf("UDP Message: '%s'\n", message);
 
     if (sscanf(m_ptr, "%s %s", cmd_id, plid) != 2)
         return -1;
@@ -526,7 +491,6 @@ int process_udp_message(char *response, char *message) {
         return -1;
     m_ptr += CMD_ID_LEN + 1 + PLID_LEN;
     if (is_m_start(cmd_id)) {
-        printf("%d\n",*m_ptr);
         if (*m_ptr != '\n')
             return -1;
         start_new_game(response, plid);
@@ -542,7 +506,7 @@ int process_udp_message(char *response, char *message) {
     } else if (is_m_guess(cmd_id)) {
         if (sscanf(m_ptr, "%s %d", word, &trial) != 2)
             return -1;
-        m_ptr += strlen(word) + 1 /* */ + 1 + /*digit*/ + 1 /*\n*/;
+        m_ptr += strlen(word) + 1 /* */ + 1 + /*digit*/ +1 /*\n*/;
         if (trial > 10)
             m_ptr += 1 /*extra_digit*/;
         if (*m_ptr != '\n')
@@ -555,13 +519,41 @@ int process_udp_message(char *response, char *message) {
     } else if (is_m_rev(cmd_id)) {
         if (*m_ptr != '\n')
             return -1;
-        rev(response, plid);
+        return rev(response, plid); // special command, might not send response
     } else {
         return -1;
     }
-    return 0;
+    return 1;
 }
 
-int process_tcp_message(char *response, char *message) {
-    return -1;
+int process_tcp_message(char *response, char *message, FILE **fp) {
+    char *m_ptr = message;
+    char cmd_id[CMD_ID_LEN + 1];
+    char plid[PLID_LEN + 1];
+    int n_args;
+
+    printf("TCP Message: '%s'\n", message);
+
+    n_args = sscanf(message, "%s %s\n", cmd_id, plid);
+    if (n_args <= 0) {
+        return -1;
+    } else if (n_args == 1) {
+        m_ptr += CMD_ID_LEN;
+    } else if (n_args == 2) {
+        m_ptr += CMD_ID_LEN + 1 + PLID_LEN;
+    } else {
+        return -1;
+    }
+    
+    if (*m_ptr != '\n')
+        return -1;
+    
+    if (is_m_scoreboard(cmd_id))
+        return get_scoreboard(response, getpid(), fp);
+    else if (is_m_hint(cmd_id))
+        return get_hint_image(response, plid, fp);
+    else if (is_m_state(cmd_id))
+        return get_state(response, plid, fp);
+    else
+        return -1;
 }
