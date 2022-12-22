@@ -9,6 +9,43 @@
 
 extern int errno;
 
+/*
+Parse command line arguments and set the variables accordingly
+*/
+int parse_clargs(int argc, char *argv[], char **hostname, char *port, int *verbose) {
+    int n = 0, i = 1;
+    if (argc <= 1)
+        return n;
+    for (; i < argc; i++) {
+        if (argv[i][0] != '-')
+            return -1;
+        switch (argv[i][1]) {
+        case 'n':
+            *hostname = (char *)malloc(sizeof(char) * (MAX_HOST + 1));
+            if (strlen(argv[i + 1]) > MAX_HOST) // Prevent overflow
+                argv[i + 1][MAX_HOST] = '\0';
+            strncpy(*hostname, argv[i + 1], MAX_HOST + 1);
+            i++; // Ignore next word
+            n++;
+            break;
+        case 'p':
+            if (strlen(argv[i + 1]) > MAX_PORT) // Prevent overflow
+                argv[i + 1][MAX_PORT] = '\0';
+            strncpy(port, argv[i + 1], MAX_PORT + 1);
+            i++; // Ignore next word
+            n++;
+            break;
+        case 'v':
+            *verbose = TRUE;
+            n++;
+            break;
+        default:
+            return -1;
+        }
+    }
+    return n;
+}
+
 int main(int argc, char *argv[]) {
     int verbose = FALSE; // !! [DEBUG]
     char message[MAX_MESSAGE];
@@ -28,7 +65,7 @@ int main(int argc, char *argv[]) {
     recv_f.f_size = 0;
     recv_f.f_data = NULL;
 
-    if (parse_cli(argc, argv, &hostname, port, &verbose) == -1) {
+    if (parse_clargs(argc, argv, &hostname, port, &verbose) == -1) {
         fprintf(stderr, "[ERROR] Parsing command line parameters.\n");
         exit(1);
     }
