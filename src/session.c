@@ -7,7 +7,7 @@ typedef struct state {
     int word_len;
     int no_tries;
     int max_errors;
-    char last_letter;
+    char last_guess[WORD_MAX + 1];
 } State;
 
 
@@ -22,7 +22,7 @@ void init_game(char *plid) {
     game_state.word_len = -1;
     game_state.no_tries = -1;
     game_state.max_errors = -1;
-    game_state.last_letter = '\0';
+    *(game_state.last_guess) = '\0';
 }
 
 void free_game() {
@@ -53,13 +53,39 @@ int get_max_errors() {
 }
 
 char get_last_letter() {
-    return game_state.last_letter;
+    if (strlen(game_state.last_guess) > 1)
+        return '\0';
+    return *(game_state.last_guess);
+}
+
+char * get_last_guess() {
+    if (strlen(game_state.last_guess) <= 1)
+        return NULL;
+    return game_state.last_guess;
 }
 
 /* SETTERS */
 
+void to_upper(char *word) {
+    for(; *word != '\0'; word++) {
+        if (*word >= 'a' && *word <= 'z')
+            *word += 'A' - 'a';
+    }
+}
+
 void set_last_letter(char c) {
-    game_state.last_letter = c;
+    if (c >= 'A' && c <= 'Z')
+        *(game_state.last_guess) = c;
+    else if (c >= 'a' && c <= 'z')
+        *(game_state.last_guess) = c - 'a' + 'A';
+    else
+        *(game_state.last_guess) = '\0';
+    *(game_state.last_guess + 1) = '\0';
+}
+
+void set_last_guess(char *guess) {
+    to_upper(guess);
+    strcpy(game_state.last_guess, guess);
 }
 
 /* VERIFIERS */
@@ -133,9 +159,15 @@ void play_game(char *output, int n, int pos[]) {
 
 void win_game(char *output) {
     char c = get_last_letter();
-    for (int i = 0; i < game_state.word_len; i += 2) {
-        if (game_state.word[i] == '_')
-            game_state.word[i] = c;
+    char *word = get_last_guess();
+    for (int i = 0; i < (game_state.word_len)*2; i += 2) {
+        if (game_state.word[i] == '_') {
+            if (c == '\0') {
+                game_state.word[i] = word[i/2];
+            } else {
+                game_state.word[i] = c;
+            }
+        }
     }
     right_try();
     sprintf(output, "WELL DONE! You guessed %s\n", game_state.word);

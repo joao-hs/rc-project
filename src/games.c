@@ -1,23 +1,25 @@
 #include "games.h"
 #include <dirent.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #define GAME_DIR_LEN 6    /* 'GAMES/' */
 #define SCORE_DIR_LEN 7   /* 'SCORES/' */
 #define TMP_DIR_LEN 5     /* '.tmp/' */
 #define GAME_PREFIX_LEN 5 /* 'GAME_' */
-#define SCORE_LEN 3 /* '001' */
+#define SCORE_LEN 3       /* '001' */
 #define DATE_FORMAT 15
 #define SCORE_PREFIX_LEN SCORE_LEN + 1 /* '100_' */
-#define TXT_EXT_LEN 4     /* '.txt' */
-#define DATE_LEN 15       /* 'YYYYMMDD_HHMMSS_' or '_DDMMYYYY_HHMMSS' */
-#define GAME_RESULT_LEN 1 /* 'W', 'F' or 'Q' */
+#define TXT_EXT_LEN 4                  /* '.txt' */
+#define DATE_LEN 15                    /* 'YYYYMMDD_HHMMSS_' or '_DDMMYYYY_HHMMSS' */
+#define GAME_RESULT_LEN 1              /* 'W', 'F' or 'Q' */
 #define ACTIVE_GAME_PATH_LEN GAME_DIR_LEN + GAME_PREFIX_LEN + PLID_LEN + TXT_EXT_LEN
 #define ARCHIVED_PLID_DIR_LEN GAME_DIR_LEN + PLID_LEN + 1 /* '/' */
-#define ARCHIVED_GAME_PATH_LEN ARCHIVED_PLID_DIR_LEN + DATE_LEN + GAME_RESULT_LEN + TXT_EXT_LEN
+#define ARCHIVED_GAME_PATH_LEN ARCHIVED_PLID_DIR_LEN + DATE_LEN + 1 /* '_' */ + GAME_RESULT_LEN + TXT_EXT_LEN
 #define SCORE_FILE_PATH_LEN SCORE_DIR_LEN + SCORE_PREFIX_LEN + PLID_LEN + DATE_LEN + TXT_EXT_LEN
-#define TRIAL_GUESS_LEN 2 /* T Count */ + 1 /* '/' */ + 2 /* G Count */
-#define ERROR_RATIO_LEN 1 /* T errors made*/ + 1 /* '/' */ + 1 /* G errors made*/ + 1 /* '/' */ + 1 /* max_errors */
+#define TRIAL_GUESS_LEN 2 /* T Count */ + 1 /* '/' */ + 2                                                                           /* G Count */
+#define ERROR_RATIO_LEN 1 /* T errors made*/ + 1 /* '/' */ + 1 /* G errors made*/ + 1 /* '/' */ + 1                                 /* max_errors */
 #define GAME_FILE_HEADER_MAX WORD_MAX + 1 /* ' ' */ + FNAME_LEN + 1 /* ' ' */ + TRIAL_GUESS_LEN + 1 /* ' ' */ + ERROR_RATIO_LEN + 1 /* '/n' */
 #define FGAME_COMMAND_LEN 1
 #define FGAME_LINE_LEN FGAME_COMMAND_LEN + 1 /* ' ' */ + WORD_MAX + 1 /* '\n' */
@@ -44,6 +46,7 @@ const char WORDS_DIR[] = "src/data/words/";
 const char HINTS_DIR[] = "src/data/images/";
 Word_Node *word_to_choose;
 int randomize = FALSE;
+extern int errno;
 
 /*
 Searches for the last game from plid.
@@ -64,10 +67,11 @@ int find_last_game(const char *plid, char *active_game_path, char *archived_game
         fclose(check);
         return 1;
     } else if ((n_entries = scandir(archived_game_dir_path, &filelist, 0, alphasort)) > 0) {
+        n_entries--;
         for (; n_entries > 0; n_entries--) {
-            if (filelist[n_entries]->d_name[0] == '.'){
+            if (filelist[n_entries]->d_name[0] == '.') {
                 free(filelist[n_entries]);
-                continue;             
+                continue;
             }
             snprintf(archived_game_path, ARCHIVED_GAME_PATH_LEN + 1, "GAMES/%s/%s", plid, filelist[n_entries]->d_name);
             free(filelist[n_entries]);
@@ -79,34 +83,45 @@ int find_last_game(const char *plid, char *active_game_path, char *archived_game
     return -1;
 }
 
-int archive_game(char *plid, char *state){
+int archive_game(char *plid, char *state) {
+    DIR *d;
     char active_game_path[ACTIVE_GAME_PATH_LEN + 1];
+    char archived_path[ARCHIVED_PLID_DIR_LEN + 1];
     char archived_game_path[ARCHIVED_GAME_PATH_LEN + 1];
-    char date[DATE_FORMAT+1];
-    int r;
+    char date[DATE_FORMAT + 1];
+    int r = -1;
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     snprintf(date, DATE_FORMAT + 1, "%d%02d%02d_%02d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
     snprintf(active_game_path, ACTIVE_GAME_PATH_LEN + 1, "GAMES/%s.txt", plid);
-    snprintf(archived_game_path, ARCHIVED_GAME_PATH_LEN + 1, "GAMES/%s/%s_%s.txt", plid, date, state);
-    r = rename(active_game_path, archived_game_path);
-    if(!r){
+    snprintf(archived_path, ARCHIVED_PLID_DIR_LEN + 1, "GAMES/%s", plid);
+    snprintf(archived_game_path, ARCHIVED_GAME_PATH_LEN + 1, "%s/%s_%s.txt", archived_path, date, state);
+    d = opendir(archived_path);
+    if (d) {
+        closedir(d);
+    } else if (ENOENT == errno) {
+        if (mkdir(archived_path, 0777)) {
+            return -1;
+        }
+    } else {
+        closedir(d);
         return -1;
     }
-    return 0;
+    r = rename(active_game_path, archived_game_path);
+    return r;
 }
 
-int save_score(FILE *fp, char *plid){
+int save_score(FILE *fp, char *plid) {
     Score s;
     FILE *score;
     char hint[FNAME_LEN + 1];
-    char header[GAME_FILE_HEADER_MAX+1];
-    char score_path[SCORE_FILE_PATH_LEN+1];
-    char date[DATE_FORMAT+1];
+    char header[GAME_FILE_HEADER_MAX + 1];
+    char score_path[SCORE_FILE_PATH_LEN + 1];
+    char date[DATE_FORMAT + 1];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     int unique_chars, t_count, g_count, t_errors, g_errors, max_errors;
-    
+
     snprintf(date, DATE_FORMAT + 1, "%02d%02d%d_%02d%02d%02d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
     fgets(header, GAME_FILE_HEADER_MAX + 1, fp);
     sscanf(header, "%s %s %d %d/%d %d/%d/%d\n",
@@ -116,10 +131,10 @@ int save_score(FILE *fp, char *plid){
     strcpy(s.plid, plid);
     s.right_guesses = t_count - t_errors;
     s.total = t_count + g_count;
-    s.score = (s.right_guesses/s.total)*100;
-    snprintf(score_path, SCORE_FILE_PATH_LEN+1, "%03d_%s_%s.txt", s.score, plid, date);
+    s.score = (s.right_guesses / s.total) * 100;
+    snprintf(score_path, SCORE_FILE_PATH_LEN + 1, "SCORES/%03d_%s_%s.txt", s.score, plid, date);
     score = fopen(score_path, "w");
-    if(score){
+    if (!score) {
         return -1;
     }
     fprintf(score, "%d %s %s %d %d", s.score, s.plid, s.word, s.right_guesses, s.total);
@@ -177,8 +192,12 @@ Word_Node *choose_word() {
 int count_unique_chars(char *word) {
     int alphabet[ALPHABET_LEN] = {0};
     int sum = 0;
-    for (; *word != '\0'; word++)
-        alphabet[*word - 'A']++;
+    for (; *word != '\0'; word++) {
+        if (*word >= 'A' && *word <= 'Z')
+            alphabet[*word - 'A']++;
+        else if (*word >= 'a' && *word <= 'z')
+            alphabet[*word - 'a']++;
+    }
     for (int i = 0; i < ALPHABET_LEN; i++) {
         if (alphabet[i] != 0)
             sum++;
@@ -215,15 +234,15 @@ void start_new_game(char *response, char *plid) {
         max_errors = 8;
     else
         max_errors = 7;
+    code = count_unique_chars(chosen_word->word);
     fprintf(fp, "%s %s %d %d/%d %d/%d/%d\n",
             chosen_word->word, chosen_word->hint,
-            count_unique_chars(chosen_word->word),
+            code,
             0 /*T count*/, 0 /*G count*/,
             0 /*T errors*/, 0 /*G errors*/, max_errors);
-
+    snprintf(response, CMD_ID_LEN + 1 + 2 + 1 + 2 + 1 + 2 + 2, "RSG OK %d %d\n", n_letters, max_errors);
     fflush(fp);
     fclose(fp);
-    snprintf(response, CMD_ID_LEN + 1 + 2 + 1 + 2 + 1 + 2 + 2, "RSG OK %d %d\n", n_letters, max_errors);
     return;
 }
 
@@ -256,7 +275,7 @@ int get_char_match_word(char *word, char c, char *pos) {
     for (int i = 1; *word != '\0'; i++, word++) {
         if (*word != c)
             continue;
-        if (i > 10)
+        if (i >= 10)
             *(pos++) = i / 10 + '0';
         *(pos++) = i % 10 + '0';
         *(pos++) = ' ';
@@ -289,7 +308,7 @@ void play_letter_guess(char *response, char *plid, char c, int trial) {
     int s_trial, t_count, g_count;
     int unique_chars;
     int t_errors, g_errors, max_errors;
-    int n, code;
+    int n, code, win = FALSE, lose = FALSE;
 
     code = find_last_game(plid, active_game_path, archived_game_path);
     if (code != 1) {
@@ -321,11 +340,13 @@ void play_letter_guess(char *response, char *plid, char c, int trial) {
     s_trial++;
     if (n == 0) {
         t_errors++;
-        if (t_errors + g_errors == max_errors)
+        if (t_errors + g_errors == max_errors) {
+            lose = TRUE;
             snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 2, "RLG OVR %d\n", s_trial);
-        else
+        } else
             snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 2, "RLG NOK %d\n", s_trial);
     } else if (t_count - t_errors == unique_chars) {
+        win = TRUE;
         snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 2, "RLG WIN %d\n", s_trial);
     } else {
         snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 1 + 2 + 1 + strlen(pos) + 2, "RLG OK %d %d %s\n", s_trial, n, pos);
@@ -338,6 +359,16 @@ void play_letter_guess(char *response, char *plid, char c, int trial) {
     fseek(fp, 0, SEEK_END);
     fprintf(fp, "T %c\n", c);
     fflush(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (win) {
+        save_score(fp, plid);
+        fclose(fp);
+        archive_game(plid, "W");
+    }
+    if (lose) {
+        fclose(fp);
+        archive_game(plid, "F");
+    }
     fclose(fp);
     return;
 }
@@ -362,7 +393,7 @@ void play_word_guess(char *response, char *plid, char *guess, int trial) {
     int s_trial, t_count, g_count;
     int unique_chars;
     int t_errors, g_errors, max_errors;
-    int n, code;
+    int n, code, win = FALSE, lose = FALSE;
 
     code = find_last_game(plid, active_game_path, archived_game_path);
     if (code != 1) {
@@ -390,15 +421,17 @@ void play_word_guess(char *response, char *plid, char *guess, int trial) {
         return;
     }
     n = strcmp(word, guess);
-    t_count++;
+    g_count++;
     s_trial++;
     if (n != 0) {
         g_errors++;
-        if (t_errors + g_errors == max_errors)
+        if (t_errors + g_errors == max_errors) {
+            lose = TRUE;
             snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 2, "RWG OVR %d\n", s_trial);
-        else
+        } else
             snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 2, "RWG NOK %d\n", s_trial);
     } else {
+        win = TRUE;
         snprintf(response, CMD_ID_LEN + 1 + 3 + 1 + 2 + 2, "RWG WIN %d\n", s_trial);
     }
     fseek(fp, 0, SEEK_SET);
@@ -409,7 +442,15 @@ void play_word_guess(char *response, char *plid, char *guess, int trial) {
     fseek(fp, 0, SEEK_END);
     fprintf(fp, "G %s\n", guess);
     fflush(fp);
-    fclose(fp);
+    if (win) {
+        save_score(fp, plid);
+        fclose(fp);
+        archive_game(plid, "W");
+    }
+    if (lose) {
+        fclose(fp);
+        archive_game(plid, "F");
+    }
     return;
 }
 
@@ -429,8 +470,8 @@ void quit(char *response, char *plid) {
     if (code != 1) {
         strcpy(response, "RQT NOK\n");
         return;
-    }    
-    if (!archive_game(plid, state)) {
+    }
+    if (archive_game(plid, state)) {
         strcpy(response, "RQT ERR\n");
         return;
     }
@@ -462,7 +503,7 @@ int rev(char *response, char *plid) {
     return 1;
 }
 
-int get_top_10_scores(Score *score_list){
+int get_top_10_scores(Score *score_list) {
     struct dirent **filelist;
     int n_entries;
     char fname[SCORE_FILE_PATH_LEN + 1];
@@ -471,6 +512,10 @@ int get_top_10_scores(Score *score_list){
     int i = 0;
 
     n_entries = scandir(SCORES_DIR, &filelist, 0, alphasort);
+    n_entries--;
+    if (n_entries == 1) {
+        return 0;
+    }
     for (; n_entries > 0; n_entries--) {
         if (filelist[n_entries]->d_name[0] == '.') {
             free(filelist[n_entries]);
@@ -485,7 +530,7 @@ int get_top_10_scores(Score *score_list){
         fclose(fp);
         i++;
         free(filelist[n_entries]);
-        if (i == 10) 
+        if (i == 10)
             break;
     }
     free(filelist);
@@ -501,7 +546,7 @@ int get_scoreboard(char *response, pid_t pid, FILE **fp) {
      * 5. Build Fsize = chars counted
      * 6. Send to socket the data + '\n'
      */
-    char scoreboard[SCOREBOARD_LINE_LEN*10 + 1];
+    char scoreboard[SCOREBOARD_LINE_LEN * 10 + 1];
     char *ptr = scoreboard;
     char fname[FNAME_LEN + 1];
     int fsize;
@@ -514,9 +559,9 @@ int get_scoreboard(char *response, pid_t pid, FILE **fp) {
         return 0;
     }
     for (int i = 0; i < n; i++) {
-        ptr += snprintf(ptr, SCOREBOARD_LINE_LEN, "%03d %s %s %d %d\n", 
-            score_list[i].score, score_list[i].plid, score_list[i].word,
-            score_list[i].right_guesses, score_list[i].total);
+        ptr += snprintf(ptr, SCOREBOARD_LINE_LEN, "%03d %s %s %d %d\n",
+                        score_list[i].score, score_list[i].plid, score_list[i].word,
+                        score_list[i].right_guesses, score_list[i].total);
     }
     *(ptr + 1) = '\0';
     snprintf(fname, FNAME_LEN + 1, "TOPSCORES_%07d.txt", pid);
@@ -526,7 +571,7 @@ int get_scoreboard(char *response, pid_t pid, FILE **fp) {
     fflush(*fp);
     rewind(*fp);
     snprintf(response, CMD_ID_LEN + 1 + 2 + 1 + FNAME_LEN + 1 + FSIZE_LEN + 2,
-        "RSB OK %s %d ", fname, fsize);
+             "RSB OK %s %d ", fname, fsize);
     return fsize;
 }
 
@@ -556,7 +601,7 @@ int get_hint_image(char *response, char *plid, FILE **fp) {
     fsize = ftell(*fp);
     rewind(*fp);
     snprintf(response, CMD_ID_LEN + 1 + 2 + 1 + FNAME_LEN + 1 + FSIZE_LEN + 2,
-        "RHL OK %s %d ", hint, fsize);
+             "RHL OK %s %d ", hint, fsize);
     return fsize;
 }
 
@@ -587,6 +632,6 @@ int get_state(char *response, char *plid, FILE **fp) {
     fsize = ftell(*fp);
     rewind(*fp);
     snprintf(response, CMD_ID_LEN + 1 + 2 + 1 + FNAME_LEN + 1 + FSIZE_LEN + 2,
-        "RST OK %s %d", fname, fsize);
+             "RST OK %s %d", fname, fsize);
     return fsize;
 }

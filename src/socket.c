@@ -13,8 +13,10 @@ ssize_t complete_write(int fd, char *buffer, ssize_t n) {
             return -1;
         nleft -= nwritten;
         ptr += nwritten;
+        if (*(ptr - 1) == '\n')
+            break;
     }
-    return n;
+    return n - nleft;
 }
 
 ssize_t complete_read(int fd, char *buffer, ssize_t n) {
@@ -26,12 +28,12 @@ ssize_t complete_read(int fd, char *buffer, ssize_t n) {
         nread = read(fd, ptr, nleft);
         if (nread == -1)
             return -1;
-        else if (nread == 0)
-            return n - nleft;
         nleft -= nread;
         ptr += nread;
+        if (nread == 0 || *(ptr-1) == '\n')
+            break;
     }
-    return n;
+    return n - nleft;
 }
 
 ssize_t complete_read_word(int fd, char *buffer, ssize_t max) {

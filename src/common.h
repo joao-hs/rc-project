@@ -29,7 +29,8 @@
 #define MAX_PORT 6
 #define MAX_MESSAGE CMD_ID_LEN + 1 + WORD_MAX + 1
 #define MAX_UDP_RESPONSE CMD_ID_LEN + 1 + STATUS_LEN + 1 + 2 + 2 + WORD_MAX * 2
-#define MAX_TCP_RESPONSE CMD_ID_LEN + 1 + STATUS_LEN + 1 + FNAME_LEN + 1 + FSIZE_LEN + 1 + FDATA_MAX + 1
+#define TCP_HEADER_RESPONSE CMD_ID_LEN + 1 + STATUS_LEN + 1 + FNAME_LEN + 1 + FSIZE_LEN + 1
+#define MAX_TCP_RESPONSE TCP_HEADER_RESPONSE + FDATA_MAX + 1
 
 #define MAX(x, y) ({__typeof__ (x) _x = (x); __typeof__ (y) _y = (y); _x > _y ? _x : _y; })
 #define MIN(x, y) ({__typeof__ (x) _x = (x); __typeof__ (y) _y = (y); _x <= _y ? _x : _y; })

@@ -274,6 +274,7 @@ int parse_input(char *message) {
         if (get_plid() == NULL) {
             return -1;
         }
+        set_last_guess(info);
         snprintf(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 2, "PWG %s %s %d\n", get_plid(), info, get_no_tries());
         return strnlen(message, CMD_ID_LEN + 1 + PLID_LEN + 1 + WORD_MAX + 1 + 2 + 1);
     } else if (is_rev(command, strnlen(command, MAX_COMMAND))) {
@@ -320,9 +321,15 @@ int is_letter(char c) {
     return FALSE;
 }
 
+int is_digit(char c) {
+    if ('0' <= c && c <= '9')
+        return TRUE;
+    return FALSE;
+}
+
 int is_valid_fname(char *fname) {
     while (*fname != '\0' && *fname != '.') {
-        if (!is_letter(*fname) && *fname != '-' && *fname != '_')
+        if (!is_letter(*fname) && !is_digit(*fname) && *fname != '-' && *fname != '_')
             return FALSE;
         fname++;
     }
@@ -410,15 +417,16 @@ int parse_tcp_header(int fd, F_INFO *f) {
     return -1;
 }
 
-int process_udp_response(char *response, int nbytes) {
+int process_udp_response(char *response, int nbytes, int *exit_code) {
     char buffer[100];
     char code[CMD_ID_LEN + 1];
-    char status[STATUS_LEN + 1];
+    char status[WORD_MAX];
     int a, b, i, aux;
     int *pos;
     char *ptr;
     sscanf(response, "%s %s %d %d", code, status, &a, &b);
     if (is_r_start(code)) {
+        *exit_code = 1;
         if (is_st_ok(status)) {
             start_game(buffer, a, b);
             printf(buffer);
@@ -428,6 +436,7 @@ int process_udp_response(char *response, int nbytes) {
         }
         return -1;
     } else if (is_r_play(code)) {
+        *exit_code = 1;
         if (is_st_ok(status)) {
             ptr = response + (CMD_ID_LEN + 1 + 2 + 1);
             if (a < 10)
@@ -448,6 +457,7 @@ int process_udp_response(char *response, int nbytes) {
                     ptr += 2 + 1;
             }
             play_game(buffer, b, pos);
+            free(pos);
             printf(buffer);
             return 0;
         } else if (is_st_win(status)) {
@@ -467,12 +477,46 @@ int process_udp_response(char *response, int nbytes) {
         }
         return -1;
     } else if (is_r_guess(code)) {
-
+        *exit_code = 1;
+        if (is_st_win(status)) {
+            win_game(buffer);
+            printf(buffer);
+            return 0;
+        } else if (is_st_dup(status)) {
+            printf("Error: Duplicate guess.\n");
+        } else if (is_st_nok(status)) {
+            printf("The word guessed is not correct. You can only fail %d more time(s).\n", wrong_try());
+        } else if (is_st_ovr(status)) {
+            printf("GAME OVER!\n");
+        } else if (is_st_inv(status)) {
+            printf("Error: Invalid trial number.\n");
+        } else if (is_st_err(status)) {
+            printf("Error: Wrong play request.\n");
+        }
+        return -1;
     } else if (is_r_quit(code)) {
-
+        if (is_st_ok(status)) {
+            quit_game();
+            return 1;
+        } else if (is_st_err(status)) {
+            printf("Error: Wrong format.\n");
+        }
+        *exit_code = 1;
+        return -1;
     } else if (is_r_rev(code)) {
+        *exit_code = 1;
+        printf("The word to guess is: %s\n", status);
+        return -1;
     }
+    *exit_code = 1;
     return -1;
+}
+
+void to_lower(char *word) {
+    for(; *word != '\0'; word++) {
+        if (*word >= 'A' && *word <= 'Z')
+            *word += 'a' - 'A';
+    }
 }
 
 int process_udp_message(char *response, char *message) {
@@ -483,42 +527,57 @@ int process_udp_message(char *response, char *message) {
     char c;
     int trial;
 
-    printf("UDP Message: '%s'\n", message);
-
     if (sscanf(m_ptr, "%s %s", cmd_id, plid) != 2)
         return -1;
     if (!is_id(plid, strlen(plid)))
         return -1;
     m_ptr += CMD_ID_LEN + 1 + PLID_LEN;
     if (is_m_start(cmd_id)) {
-        if (*m_ptr != '\n')
-            return -1;
+        if (*m_ptr != '\n') {
+            strcpy(response, "RSG ERR\n");
+            return 1;
+        }
         start_new_game(response, plid);
     } else if (is_m_play(cmd_id)) {
-        if (sscanf(m_ptr, "%c %d", &c, &trial) != 2)
-            return -1;
+        if (sscanf(m_ptr, " %c %d", &c, &trial) != 2) {
+            strcpy(response, "RLG ERR\n");
+            return 1;
+        }
         m_ptr += 1 /*c*/ + 1 /* */ + 1 /*digit*/ + 1 /*\n*/;
         if (trial > 10)
             m_ptr += 1 /*extra_digit*/;
-        if (*m_ptr != '\n')
-            return -1;
+        if (*m_ptr != '\n') {
+            strcpy(response, "RLG ERR\n");
+            return 1;
+        }
+        if (c >= 'A' && c <= 'Z')
+            c += 'a' - 'A';
         play_letter_guess(response, plid, c, trial);
     } else if (is_m_guess(cmd_id)) {
-        if (sscanf(m_ptr, "%s %d", word, &trial) != 2)
-            return -1;
+        if (sscanf(m_ptr, " %s %d", word, &trial) != 2) {
+            strcpy(response, "RWG ERR\n");
+            return 1;
+        }
         m_ptr += strlen(word) + 1 /* */ + 1 + /*digit*/ +1 /*\n*/;
         if (trial > 10)
             m_ptr += 1 /*extra_digit*/;
-        if (*m_ptr != '\n')
-            return -1;
+        if (*m_ptr != '\n') {
+            strcpy(response, "RWG ERR\n");
+            return 1;
+        }
+        to_lower(word);
         play_word_guess(response, plid, word, trial);
     } else if (is_m_quit(cmd_id)) {
-        if (*m_ptr != '\n')
-            return -1;
+        if (*m_ptr != '\n') {
+            strcpy(response, "RQT ERR\n");
+            return 1;
+        }
         quit(response, plid);
     } else if (is_m_rev(cmd_id)) {
-        if (*m_ptr != '\n')
-            return -1;
+        if (*m_ptr != '\n') {
+            strcpy(response, "RRV ERR\n");
+            return 1;
+        }
         return rev(response, plid); // special command, might not send response
     } else {
         return -1;
@@ -531,8 +590,6 @@ int process_tcp_message(char *response, char *message, FILE **fp) {
     char cmd_id[CMD_ID_LEN + 1];
     char plid[PLID_LEN + 1];
     int n_args;
-
-    printf("TCP Message: '%s'\n", message);
 
     n_args = sscanf(message, "%s %s\n", cmd_id, plid);
     if (n_args <= 0) {

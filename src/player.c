@@ -4,15 +4,14 @@
 
 #define DEFAULT_HOSTNAME NULL
 #define DEFAULT_PORT "58011"
-#define D_HOST_LEN sizeof DEFAULT_HOSTNAME
-#define D_PORT_LEN sizeof DEFAULT_PORT
+#define TIME_OUT 10
 
 extern int errno;
 
 /*
 Parse command line arguments and set the variables accordingly
 */
-int parse_clargs(int argc, char *argv[], char **hostname, char *port, int *verbose) {
+int parse_clargs(int argc, char *argv[], char **hostname, char *port, int *verbose, int *timeout_and_resend) {
     int n = 0, i = 1;
     if (argc <= 1)
         return n;
@@ -39,6 +38,10 @@ int parse_clargs(int argc, char *argv[], char **hostname, char *port, int *verbo
             *verbose = TRUE;
             n++;
             break;
+        case 't':
+            *timeout_and_resend = FALSE;
+            n++;
+            break;
         default:
             return -1;
         }
@@ -48,6 +51,7 @@ int parse_clargs(int argc, char *argv[], char **hostname, char *port, int *verbo
 
 int main(int argc, char *argv[]) {
     int verbose = FALSE; // !! [DEBUG]
+    int timeout_and_resend = TRUE;
     char message[MAX_MESSAGE];
     char udp_response[MAX_UDP_RESPONSE];
     // char tcp_response[10];
@@ -55,17 +59,18 @@ int main(int argc, char *argv[]) {
     char *hostname = DEFAULT_HOSTNAME; // !! free after use
     char port[MAX_PORT];
     int udp_socket, tcp_socket;
-    int in_code, udp_code, tcp_code;
+    int in_code, udp_code, tcp_code, exit_code=1;
     struct addrinfo hints, *udp_addr, *tcp_addr;
     struct in_addr *addr;
+    struct timeval timeout;
     socklen_t addrlen;
     F_INFO recv_f;
 
-    memcpy(port, DEFAULT_PORT, D_PORT_LEN);
+    memcpy(port, DEFAULT_PORT, strlen(DEFAULT_PORT));
     recv_f.f_size = 0;
     recv_f.f_data = NULL;
 
-    if (parse_clargs(argc, argv, &hostname, port, &verbose) == -1) {
+    if (parse_clargs(argc, argv, &hostname, port, &verbose, &timeout_and_resend) == -1) {
         fprintf(stderr, "[ERROR] Parsing command line parameters.\n");
         exit(1);
     }
@@ -74,6 +79,13 @@ int main(int argc, char *argv[]) {
 
     if ((udp_socket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         fprintf(stderr, "[ERROR] Creating UDP socket.\n");
+        exit(1);
+    }
+
+    memset((void *)&timeout, 0, sizeof(timeout));
+    timeout.tv_sec = TIME_OUT;
+    if (setsockopt(udp_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+        fprintf(stderr, "ERROR: Unable to set timeout to socket.\n");
         exit(1);
     }
 
@@ -102,7 +114,7 @@ int main(int argc, char *argv[]) {
         addr = &((struct sockaddr_in *)tcp_addr->ai_addr)->sin_addr;
         printf("IPv4 address for TCP connections: %s\n", inet_ntop(tcp_addr->ai_family, addr, IPv4_addr, sizeof(IPv4_addr)));
     }
-    while (1) {
+    while (exit_code) {
         if ((in_code = parse_input(message)) == -1) {
             /* Handle incorrect input */
             continue;
@@ -110,29 +122,33 @@ int main(int argc, char *argv[]) {
         if (verbose)
             printf("Input code: %d\nMessage: '%s'\n", in_code, message);
         if (in_code >= 0) { // send message via UDP
-            if (in_code == 0)
-                udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
-            else if (in_code == 1)
-                udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
-            else
-                udp_code = sendto(udp_socket, message, in_code, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
+            do {
+                if (in_code == 0){
+                    exit_code = 0;
+                    udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
+                }
+                else if (in_code == 1)
+                    udp_code = sendto(udp_socket, message, QUT_MESSAGE_LEN, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
+                else
+                    udp_code = sendto(udp_socket, message, in_code, 0, udp_addr->ai_addr, udp_addr->ai_addrlen);
 
-            if (udp_code == -1) {
-                fprintf(stderr, "[ERROR] Sending message to server.\n");
-                exit(1);
-            }
+                if (udp_code == -1) {
+                    fprintf(stderr, "[ERROR] Sending message to server.\n");
+                    exit(1);
+                }
 
-            addrlen = sizeof(addr);
-            udp_code = recvfrom(udp_socket, udp_response, MAX_UDP_RESPONSE, 0, (struct sockaddr *)&addr, &addrlen);
-            if (udp_code == -1) {
-                fprintf(stderr, "[ERROR] Receiving message from server.\n");
-                exit(1);
-            }
+                addrlen = sizeof(addr);
+                udp_code = recvfrom(udp_socket, udp_response, MAX_UDP_RESPONSE, 0, (struct sockaddr *)&addr, &addrlen);
+                if (udp_code == -1 && !timeout_and_resend) {
+                    fprintf(stderr, "[ERROR] Receiving message from server.\n");
+                    exit(1);
+                }
+            } while (timeout_and_resend && udp_code == -1);
             if (verbose) {
                 *(udp_response + udp_code) = '\0';
                 printf("Response: '%s'\n", udp_response);
             }
-            process_udp_response(udp_response, udp_code);
+            process_udp_response(udp_response, udp_code, &exit_code);
         } else { // send message via TCP
             tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
             tcp_code = connect(tcp_socket, tcp_addr->ai_addr, tcp_addr->ai_addrlen);

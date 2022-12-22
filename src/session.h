@@ -8,6 +8,7 @@ int get_no_tries();
 int get_max_errors();
 char get_last_letter();
 void set_last_letter(char c);
+void set_last_guess(char *guess);
 int wrong_try();
 int right_try();
 void start_game(char *output, int n_letters, int max_errrors);
