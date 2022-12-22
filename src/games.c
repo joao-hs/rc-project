@@ -4,9 +4,9 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define GAME_DIR_LEN 6    /* 'GAMES/' */
-#define SCORE_DIR_LEN 7   /* 'SCORES/' */
-#define TMP_DIR_LEN 5     /* '.tmp/' */
+#define GAME_DIR_LEN 6  /* 'GAMES/' */
+#define SCORE_DIR_LEN 7 /* 'SCORES/' */
+#define HINTS_DIR_LEN 16
 #define GAME_PREFIX_LEN 5 /* 'GAME_' */
 #define SCORE_LEN 3       /* '001' */
 #define DATE_FORMAT 15
@@ -25,6 +25,7 @@
 #define FGAME_LINE_LEN FGAME_COMMAND_LEN + 1 /* ' ' */ + WORD_MAX + 1 /* '\n' */
 #define ALPHABET_LEN 26
 #define SCOREBOARD_LINE_LEN SCORE_LEN + 1 /* ' ' */ + PLID_LEN + 1 /* ' ' */ + WORD_MAX + 1 /* ' ' */ + 2 /*two digits*/ + 1 /* ' ' */ + 2 /*two digits*/ + 1 /* '\n' */
+#define SCOREBOARD_STRING_LEN 480
 
 typedef struct word_list {
     char word[WORD_MAX + 1];
@@ -129,9 +130,9 @@ int save_score(FILE *fp, char *plid) {
            &t_count, &g_count,
            &t_errors, &g_errors, &max_errors);
     strcpy(s.plid, plid);
-    s.right_guesses = t_count - t_errors;
+    s.right_guesses = (t_count - t_errors) + (g_count - g_errors);
     s.total = t_count + g_count;
-    s.score = (s.right_guesses / s.total) * 100;
+    s.score = (s.right_guesses * 100) / s.total;
     snprintf(score_path, SCORE_FILE_PATH_LEN + 1, "SCORES/%03d_%s_%s.txt", s.score, plid, date);
     score = fopen(score_path, "w");
     if (!score) {
@@ -182,10 +183,8 @@ void free_word_list() {
 Word_Node *choose_word() {
     Word_Node *chosen;
     // Repeat random number of times to make selection random.
-    // !! Critical section
-    chosen = word_to_choose;       // Read Critical
-    word_to_choose = chosen->next; // Write Critical
-    // !! Critical section over
+    chosen = word_to_choose;
+    word_to_choose = chosen->next;
     return chosen;
 }
 
@@ -359,17 +358,17 @@ void play_letter_guess(char *response, char *plid, char c, int trial) {
     fseek(fp, 0, SEEK_END);
     fprintf(fp, "T %c\n", c);
     fflush(fp);
-    fseek(fp, 0, SEEK_SET);
+    rewind(fp);
     if (win) {
         save_score(fp, plid);
         fclose(fp);
         archive_game(plid, "W");
-    }
-    if (lose) {
+    } else if (lose) {
         fclose(fp);
         archive_game(plid, "F");
+    } else {
+        fclose(fp);
     }
-    fclose(fp);
     return;
 }
 
@@ -442,14 +441,16 @@ void play_word_guess(char *response, char *plid, char *guess, int trial) {
     fseek(fp, 0, SEEK_END);
     fprintf(fp, "G %s\n", guess);
     fflush(fp);
+    rewind(fp);
     if (win) {
         save_score(fp, plid);
         fclose(fp);
         archive_game(plid, "W");
-    }
-    if (lose) {
+    } else if (lose) {
         fclose(fp);
         archive_game(plid, "F");
+    } else {
+        fclose(fp);
     }
     return;
 }
@@ -525,11 +526,12 @@ int get_top_10_scores(Score *score_list) {
         fp = fopen(fname, "r");
         if (fp == NULL)
             continue;
-        s = score_list[i];
         fscanf(fp, "%d %s %s %d %d", &s.score, s.plid, s.word, &s.right_guesses, &s.total);
         fclose(fp);
-        i++;
+        *score_list = s;
+        score_list++;
         free(filelist[n_entries]);
+        i++;
         if (i == 10)
             break;
     }
@@ -546,7 +548,7 @@ int get_scoreboard(char *response, pid_t pid, FILE **fp) {
      * 5. Build Fsize = chars counted
      * 6. Send to socket the data + '\n'
      */
-    char scoreboard[SCOREBOARD_LINE_LEN * 10 + 1];
+    char scoreboard[SCOREBOARD_STRING_LEN + 1];
     char *ptr = scoreboard;
     char fname[FNAME_LEN + 1];
     int fsize;
@@ -585,6 +587,7 @@ int get_hint_image(char *response, char *plid, FILE **fp) {
     int code;
     char active_game_path[ACTIVE_GAME_PATH_LEN + 1];
     char archived_game_path[ARCHIVED_GAME_PATH_LEN + 1];
+    char hint_path[HINTS_DIR_LEN + FNAME_LEN + 1];
     char header[GAME_FILE_HEADER_MAX + 1];
     char hint[FNAME_LEN + 1];
     int fsize;
@@ -597,6 +600,9 @@ int get_hint_image(char *response, char *plid, FILE **fp) {
     *fp = fopen(active_game_path, "r");
     fgets(header, GAME_FILE_HEADER_MAX + 1, *fp);
     sscanf(header, "%*s %s", hint);
+    fclose(*fp);
+    snprintf(hint_path, HINTS_DIR_LEN + FNAME_LEN + 1, "%s%s", HINTS_DIR, hint);
+    *fp = fopen(hint_path, "r");
     fseek(*fp, 0, SEEK_END);
     fsize = ftell(*fp);
     rewind(*fp);

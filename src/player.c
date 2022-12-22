@@ -81,12 +81,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "[ERROR] Creating UDP socket.\n");
         exit(1);
     }
-
-    memset((void *)&timeout, 0, sizeof(timeout));
-    timeout.tv_sec = TIME_OUT;
-    if (setsockopt(udp_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-        fprintf(stderr, "ERROR: Unable to set timeout to socket.\n");
-        exit(1);
+    if (timeout_and_resend) {
+        memset((void *)&timeout, 0, sizeof(timeout));
+        timeout.tv_sec = TIME_OUT;
+        if (setsockopt(udp_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+            fprintf(stderr, "ERROR: Unable to set timeout to socket.\n");
+            exit(1);
+        }
     }
 
     memset(&hints, 0, sizeof(hints));
