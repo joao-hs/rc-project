@@ -2,3 +2,6 @@
 bin
 player
 GS
+materials/*.pdf
+materials/*.md
+materials/*.pptx
